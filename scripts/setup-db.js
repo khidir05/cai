@@ -1,16 +1,20 @@
 const mysql = require('mysql2/promise');
 const fs = require('fs');
-if (fs.existsSync('.env.local')) {
-  const envFile = fs.readFileSync('.env.local', 'utf-8');
-  envFile.split('\n').forEach(line => {
-    const parts = line.split('=');
-    if (parts.length >= 2) {
-      const key = parts[0].trim();
-      const val = parts.slice(1).join('=').trim();
-      process.env[key] = val;
-    }
-  });
-}
+const loadEnv = (filePath) => {
+  if (fs.existsSync(filePath)) {
+    const envFile = fs.readFileSync(filePath, 'utf-8');
+    envFile.split('\n').forEach(line => {
+      const parts = line.split('=');
+      if (parts.length >= 2) {
+        const key = parts[0].trim();
+        const val = parts.slice(1).join('=').trim();
+        process.env[key] = val;
+      }
+    });
+  }
+};
+loadEnv('.env');
+loadEnv('.env.local');
 
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
