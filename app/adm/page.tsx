@@ -4,13 +4,13 @@ import { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import {
   LayoutDashboard, Users, FileSpreadsheet, Settings, LogOut,
   Printer, Share2, Search, Plus, Trash2, Download, Upload,
-  UserCheck, MessageSquare, Calendar, Clock, AlertTriangle,
+  UserCheck, User, MessageSquare, Calendar, Clock, AlertTriangle,
   Smartphone, UserPlus, ChevronDown, Check, Sparkles, RefreshCw, Loader2,
-  Square, Play
+  Square, Play, Menu, X, Eye
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -23,7 +23,7 @@ export default function AdminPage() {
   // Admin Dashboard State
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'sesi' | 'riwayat' | 'peserta' | 'reporting' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'sesi' | 'riwayat' | 'peserta' | 'database' | 'settings'>('dashboard');
   // Search & Filtering (for participants list)
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDesa, setFilterDesa] = useState('');
@@ -59,6 +59,9 @@ export default function AdminPage() {
   const [selectedHistorySession, setSelectedHistorySession] = useState<any>(null);
   const [historyAttendanceList, setHistoryAttendanceList] = useState<any[]>([]);
   const [isLoadingHistoryAttendance, setIsLoadingHistoryAttendance] = useState(false);
+
+  // Mobile UI States
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // 1. Initial Authentication Check
   useEffect(() => {
@@ -438,15 +441,197 @@ export default function AdminPage() {
       p.ukuran_baju || '-'
     ]);
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       startY: 25,
       head: [['No', 'ID', 'Nama', 'Kategori', 'Kelompok', 'Desa', 'Ukuran']],
       body: tableRows,
       theme: 'striped',
-      headStyles: { fillColor: [0, 102, 204] }
+      headStyles: { fillColor: [30, 165, 225] }
     });
 
     doc.save('data_peserta_cai.pdf');
+  };
+
+  // Sessions Export and Action Handlers
+  const exportSessionsToCsv = () => {
+    if (!data?.sessionsList || data.sessionsList.length === 0) return;
+    const headers = 'No,Nama Sesi,Tanggal,Waktu Buka,Waktu Tutup,Kode Akses,Status,Total Hadir\n';
+    const rows = data.sessionsList.map((s: any, idx: number) => {
+      const statusText = s.status === 1 ? 'Aktif' : 'Tutup';
+      const bukaTime = s.buka ? new Date(s.buka).toLocaleString('id-ID') : '-';
+      const tutupTime = s.tutup ? new Date(s.tutup).toLocaleString('id-ID') : '-';
+      return `${idx + 1},"${s.nama_sesi}","${s.tanggal}","${bukaTime}","${tutupTime}","${s.access_code || ''}","${statusText}",${s.total_hadir}`;
+    }).join('\n');
+
+    const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'riwayat_sesi_cai.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportSessionsToExcel = () => {
+    if (!data?.sessionsList || data.sessionsList.length === 0) return;
+    const mapped = data.sessionsList.map((s: any, idx: number) => ({
+      'No': idx + 1,
+      'Nama Sesi': s.nama_sesi,
+      'Tanggal': s.tanggal,
+      'Waktu Buka': s.buka ? new Date(s.buka).toLocaleString('id-ID') : '-',
+      'Waktu Tutup': s.tutup ? new Date(s.tutup).toLocaleString('id-ID') : '-',
+      'Kode Akses': s.access_code || '',
+      'Status': s.status === 1 ? 'Aktif' : 'Tutup',
+      'Total Hadir': s.total_hadir
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(mapped);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Riwayat Sesi');
+    XLSX.writeFile(workbook, 'riwayat_sesi_cai.xlsx');
+  };
+
+  const exportSessionsToPdf = () => {
+    if (!data?.sessionsList || data.sessionsList.length === 0) return;
+    const doc = new jsPDF();
+    doc.text('LAPORAN RIWAYAT SESI ABSENSI CAI 47', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 21);
+
+    const rows = data.sessionsList.map((s: any, idx: number) => [
+      idx + 1,
+      s.nama_sesi,
+      new Date(s.tanggal).toLocaleDateString('id-ID'),
+      s.buka ? new Date(s.buka).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-',
+      s.tutup ? new Date(s.tutup).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-',
+      s.access_code || '-',
+      s.status === 1 ? 'Aktif' : 'Tutup',
+      `${s.total_hadir} Hadir`
+    ]);
+
+    autoTable(doc, {
+      startY: 25,
+      head: [['No', 'Nama Sesi', 'Tanggal', 'Buka', 'Tutup', 'Kode Akses', 'Status', 'Total Hadir']],
+      body: rows,
+      theme: 'striped',
+      headStyles: { fillColor: [30, 165, 225] }
+    });
+
+    doc.save('riwayat_sesi_cai.pdf');
+  };
+
+  const exportSingleSession = async (session: any, format: 'pdf' | 'excel') => {
+    try {
+      const res = await fetch(`/api/adm?sessionId=${session.id}`);
+      const json = await res.json();
+      if (!json.success || !json.attendance) {
+        alert('Gagal mengambil data kehadiran untuk ekspor.');
+        return;
+      }
+      const list = json.attendance;
+      if (list.length === 0) {
+        alert('Sesi ini belum memiliki data kehadiran untuk diekspor.');
+        return;
+      }
+
+      if (format === 'pdf') {
+        const doc = new jsPDF();
+        doc.text(`LAPORAN KEHADIRAN SESI: ${session.nama_sesi.toUpperCase()}`, 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Tanggal: ${new Date(session.tanggal).toLocaleDateString('id-ID')} | Kode Akses: ${session.access_code || '-'}`, 14, 21);
+        doc.text(`Total Hadir: ${list.length} Peserta | Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 26);
+
+        const rows = list.map((l: any, idx: number) => [
+          idx + 1,
+          l.peserta_id,
+          l.nama,
+          l.nama_kategori || '-',
+          l.nama_kelompok || '-',
+          l.nama_desa || '-',
+          l.ukuran_baju || '-',
+          new Date(l.waktu_scan).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB'
+        ]);
+
+        autoTable(doc, {
+          startY: 31,
+          head: [['No', 'ID Peserta', 'Nama', 'Kategori', 'Kelompok', 'Desa', 'Ukuran', 'Waktu Scan']],
+          body: rows,
+          theme: 'striped',
+          headStyles: { fillColor: [30, 165, 225] }
+        });
+
+        doc.save(`kehadiran_${session.nama_sesi.toLowerCase().replace(/\s+/g, '_')}.pdf`);
+      } else {
+        const mapped = list.map((l: any, idx: number) => ({
+          'No': idx + 1,
+          'ID Peserta': l.peserta_id,
+          'Nama': l.nama,
+          'Kategori': l.nama_kategori || '',
+          'Kelompok': l.nama_kelompok || '',
+          'Desa': l.nama_desa || '',
+          'Ukuran Baju': l.ukuran_baju || '',
+          'Waktu Scan': new Date(l.waktu_scan).toLocaleString('id-ID')
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(mapped);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Kehadiran Sesi');
+        XLSX.writeFile(workbook, `kehadiran_${session.nama_sesi.toLowerCase().replace(/\s+/g, '_')}.xlsx`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal mengekspor data: ' + err.message);
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: string, sessionName: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus sesi "${sessionName}"? Semua data scan kehadiran pada sesi ini juga akan dihapus secara permanen.`)) {
+      return;
+    }
+    try {
+      const res = await fetch('/api/adm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_session', sessionId })
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert('Sesi berhasil dihapus.');
+        fetchDashboardData(false);
+      } else {
+        alert('Gagal menghapus sesi: ' + json.message);
+      }
+    } catch (err: any) {
+      alert('Gagal menghubungi server: ' + err.message);
+    }
+  };
+
+  const handleReopenSession = async (sessionId: string, sessionName: string) => {
+    if (data?.activeSession) {
+      alert('Gagal membuka kembali sesi. Ada sesi lain yang sedang aktif berjalan! Silakan tutup sesi aktif terlebih dahulu.');
+      return;
+    }
+
+    if (!confirm(`Apakah Anda yakin ingin membuka kembali sesi "${sessionName}"? Kode akses lama akan aktif kembali dan scan absensi bisa dilanjutkan.`)) {
+      return;
+    }
+    try {
+      const res = await fetch('/api/adm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reopen_session', sessionId })
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert('Sesi berhasil dibuka kembali!');
+        fetchDashboardData(false);
+      } else {
+        alert('Gagal membuka kembali sesi: ' + json.message);
+      }
+    } catch (err: any) {
+      alert('Gagal menghubungi server: ' + err.message);
+    }
   };
 
   // 13. Printable QR Card Action
@@ -487,7 +672,7 @@ export default function AdminPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Masukkan username"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#0066cc] focus:ring-1 focus:ring-[#0066cc]/30 transition-all placeholder:text-slate-400"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#63c5eb] focus:ring-1 focus:ring-[#63c5eb]/30 transition-all placeholder:text-slate-400"
               />
             </div>
 
@@ -499,7 +684,7 @@ export default function AdminPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Masukkan password"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#0066cc] focus:ring-1 focus:ring-[#0066cc]/30 transition-all placeholder:text-slate-400"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#63c5eb] focus:ring-1 focus:ring-[#63c5eb]/30 transition-all placeholder:text-slate-400"
               />
             </div>
 
@@ -509,7 +694,7 @@ export default function AdminPage() {
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-[#0066cc] hover:bg-[#0052a3] text-white font-bold text-sm rounded-xl transition-all shadow-md active:scale-[0.99] mt-2"
+              className="w-full py-3.5 bg-[#63c5eb] hover:bg-[#4baecd] text-white font-bold text-sm rounded-xl transition-all shadow-md active:scale-[0.99] mt-2"
             >
               Masuk Sekarang
             </button>
@@ -523,7 +708,7 @@ export default function AdminPage() {
   if (isLoading || !data) {
     return (
       <div className="min-h-screen bg-[#f4f7fc] flex flex-col items-center justify-center font-sans text-slate-500">
-        <Loader2 className="w-10 h-10 text-[#0066cc] animate-spin mb-4" />
+        <Loader2 className="w-10 h-10 text-[#63c5eb] animate-spin mb-4" />
         <span className="text-sm font-bold tracking-wide">Memuat Panel Admin CAI...</span>
       </div>
     );
@@ -564,20 +749,38 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Sidebar Overlay for Mobile */}
+      {isMobileSidebarOpen && (
+        <div
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 z-40 md:hidden print:hidden transition-opacity duration-300"
+        />
+      )}
+
       {/* -------------------- MAIN SIDEBAR -------------------- */}
-      <aside className="w-64 bg-gradient-to-b from-[#0e487f] to-[#041a30] text-slate-200 flex flex-col print:hidden shadow-xl shrink-0">
-        <div className="p-6 flex flex-col items-center border-b border-white/10">
-          <img src="/logo.png" alt="CAI Logo" className="h-14 mb-3 object-contain" />
-          <h2 className="text-sm font-extrabold tracking-widest text-white uppercase text-center">CAI 47 Ciltim 1</h2>
-          <p className="text-[9px] text-[#00aaff] font-bold tracking-widest uppercase mt-0.5">ADMIN SYSTEM</p>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-[#63c5eb] via-[#5dbbe0] to-[#2974c5] text-slate-900 flex flex-col print:hidden shadow-xl shrink-0 transition-transform duration-300 md:translate-x-0 md:relative md:flex ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}>
+        <div className="p-6 flex flex-col items-center border-b border-black/10 relative">
+          {/* Close button for Mobile Sidebar */}
+          <button
+            onClick={() => setIsMobileSidebarOpen(false)}
+            className="absolute top-4 right-4 p-1 text-slate-850 hover:text-black md:hidden focus:outline-none"
+            title="Tutup Menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <img src="/logo.png" alt="CAI Logo" className="h-14 mb-3 object-contain animate-pulse" style={{ animationDuration: '3s' }} />
+          <h2 className="text-sm font-extrabold tracking-widest text-[#041a30] uppercase text-center">CAI 47 Ciltim 1</h2>
+          <p className="text-[9px] text-white font-black tracking-widest uppercase mt-0.5 drop-shadow-xs">ADMIN SYSTEM</p>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 py-6 space-y-1 overflow-y-auto">
           <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-bold transition-all ${activeTab === 'dashboard'
-              ? 'bg-[#007ceb] text-white shadow-md'
-              : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+            onClick={() => { setActiveTab('dashboard'); setIsMobileSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3.5 py-3.5 transition-all text-xs border-none focus:outline-none ${activeTab === 'dashboard'
+              ? 'bg-white text-slate-900 shadow-sm font-black px-8'
+              : 'text-[#041a30]/85 hover:bg-white/10 hover:text-slate-950 font-bold px-8'
               }`}
           >
             <LayoutDashboard className="w-4.5 h-4.5" />
@@ -585,20 +788,21 @@ export default function AdminPage() {
           </button>
 
           <button
-            onClick={() => setActiveTab('sesi')}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-bold transition-all ${activeTab === 'sesi'
-              ? 'bg-[#007ceb] text-white shadow-md'
-              : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+            onClick={() => { setActiveTab('sesi'); setIsMobileSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3.5 py-3.5 transition-all text-xs border-none focus:outline-none ${activeTab === 'sesi'
+              ? 'bg-white text-slate-900 shadow-sm font-black px-8'
+              : 'text-[#041a30]/85 hover:bg-white/10 hover:text-slate-950 font-bold px-8'
               }`}
           >
             <Calendar className="w-4.5 h-4.5" />
             <span>Sesi & Akses</span>
           </button>
+
           <button
-            onClick={() => setActiveTab('riwayat')}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-bold transition-all ${activeTab === 'riwayat'
-              ? 'bg-[#007ceb] text-white shadow-md'
-              : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+            onClick={() => { setActiveTab('riwayat'); setIsMobileSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3.5 py-3.5 transition-all text-xs border-none focus:outline-none ${activeTab === 'riwayat'
+              ? 'bg-white text-slate-900 shadow-sm font-black px-8'
+              : 'text-[#041a30]/85 hover:bg-white/10 hover:text-slate-950 font-bold px-8'
               }`}
           >
             <Clock className="w-4.5 h-4.5" />
@@ -606,10 +810,10 @@ export default function AdminPage() {
           </button>
 
           <button
-            onClick={() => setActiveTab('peserta')}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-bold transition-all ${activeTab === 'peserta'
-              ? 'bg-[#007ceb] text-white shadow-md'
-              : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+            onClick={() => { setActiveTab('peserta'); setIsMobileSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3.5 py-3.5 transition-all text-xs border-none focus:outline-none ${activeTab === 'peserta'
+              ? 'bg-white text-slate-900 shadow-sm font-black px-8'
+              : 'text-[#041a30]/85 hover:bg-white/10 hover:text-slate-950 font-bold px-8'
               }`}
           >
             <Users className="w-4.5 h-4.5" />
@@ -617,21 +821,21 @@ export default function AdminPage() {
           </button>
 
           <button
-            onClick={() => setActiveTab('reporting')}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-bold transition-all ${activeTab === 'reporting'
-              ? 'bg-[#007ceb] text-white shadow-md'
-              : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+            onClick={() => { setActiveTab('database'); setIsMobileSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3.5 py-3.5 transition-all text-xs border-none focus:outline-none ${activeTab === 'database'
+              ? 'bg-white text-slate-900 shadow-sm font-black px-8'
+              : 'text-[#041a30]/85 hover:bg-white/10 hover:text-slate-950 font-bold px-8'
               }`}
           >
             <FileSpreadsheet className="w-4.5 h-4.5" />
-            <span>Reporting</span>
+            <span>Database</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('settings')}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-bold transition-all ${activeTab === 'settings'
-              ? 'bg-[#007ceb] text-white shadow-md'
-              : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+            onClick={() => { setActiveTab('settings'); setIsMobileSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3.5 py-3.5 transition-all text-xs border-none focus:outline-none ${activeTab === 'settings'
+              ? 'bg-white text-slate-900 shadow-sm font-black px-8'
+              : 'text-[#041a30]/85 hover:bg-white/10 hover:text-slate-950 font-bold px-8'
               }`}
           >
             <Settings className="w-4.5 h-4.5" />
@@ -639,10 +843,10 @@ export default function AdminPage() {
           </button>
         </nav>
 
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-black/10">
           <button
             onClick={handleLogOut}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-red-600/10 hover:bg-red-600 hover:text-white rounded-xl text-xs font-bold text-red-400 transition-all border border-red-500/10"
+            className="w-full flex items-center gap-3 px-4 py-3 bg-[#041a30]/10 hover:bg-[#041a30] hover:text-white rounded-xl text-xs font-bold text-[#041a30] transition-all border border-[#041a30]/15"
           >
             <LogOut className="w-4.5 h-4.5" />
             <span>Log Out</span>
@@ -655,17 +859,28 @@ export default function AdminPage() {
 
         {/* -------------------- PREMIUM HEADER -------------------- */}
         <header
-          className="bg-cover bg-center h-48 px-8 py-6 text-white flex justify-between items-start shadow-inner relative transition-all duration-300"
+          className="bg-cover bg-center h-48 px-8 py-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center shadow-inner relative transition-all duration-300 gap-4"
           style={{ backgroundImage: "url('/bg.jpeg')" }}
         >
-          <div className="absolute inset-0 bg-blue-900/15 pointer-events-none" />
-          <div className="relative z-10">
-            <h1 className="text-2xl font-black tracking-wide leading-tight text-white drop-shadow-md">
-              Selamat datang, CAI 47 Ciltim 1
-            </h1>
-            <p className="text-slate-200 text-xs font-semibold mt-1 opacity-90 drop-shadow-sm">
-              Kegiatan Camping Akhir Tahun Cilacap Timur 1 Ke 47.
-            </p>
+          <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-3xs pointer-events-none" />
+
+          {/* Left Title */}
+          <div className="relative z-10 flex items-center">
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="p-2 -ml-2 text-white bg-white/10 rounded-xl hover:bg-white/20 active:bg-white/30 md:hidden mr-3 focus:outline-none"
+              title="Buka Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-xl md:text-2xl font-black tracking-wide leading-tight text-white drop-shadow-md">
+                Selamat Datang, CAI 47 Ciltim 1
+              </h1>
+              <p className="text-slate-100 text-xxs font-bold mt-1.5 drop-shadow-md">
+                Perkemahan Akhir Tahun Ajaran Cinta Alam Indonesia
+              </p>
+            </div>
           </div>
         </header>
 
@@ -756,7 +971,7 @@ export default function AdminPage() {
                   <div className="flex items-center justify-between border-b border-slate-200 pb-3.5">
                     <div>
                       <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                        <Smartphone className="w-4.5 h-4.5 text-[#0066cc]" />
+                        <Smartphone className="w-4.5 h-4.5 text-[#63c5eb]" />
                         Data Terbaru Peserta yang Scan
                       </h2>
                       <p className="text-[10px] text-slate-400 font-medium">Menampilkan 5 - 10 data scan paling akhir</p>
@@ -769,17 +984,18 @@ export default function AdminPage() {
                     </button>
                   </div>
 
-                  <div className="overflow-x-auto rounded-xl border border-slate-150 bg-white">
+                  {/* Desktop View Table */}
+                  <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-150 bg-white">
                     <table className="min-w-full divide-y divide-slate-150 text-left">
-                      <thead className="bg-[#007ceb] text-white">
+                      <thead className="bg-[#1ea5e1] text-white font-bold">
                         <tr>
-                          <th scope="col" className="px-5 py-3 text-xs font-bold text-center w-12">No</th>
+                          <th scope="col" className="px-5 py-3 text-xs font-bold text-center w-12 rounded-l-2xl">No</th>
                           <th scope="col" className="px-5 py-3 text-xs font-bold">Nama</th>
                           <th scope="col" className="px-5 py-3 text-xs font-bold">ID Peserta</th>
                           <th scope="col" className="px-5 py-3 text-xs font-bold">Kategori</th>
                           <th scope="col" className="px-5 py-3 text-xs font-bold">Kelompok</th>
                           <th scope="col" className="px-5 py-3 text-xs font-bold">Desa</th>
-                          <th scope="col" className="px-5 py-3 text-xs font-bold text-center">Waktu Scan</th>
+                          <th scope="col" className="px-5 py-3 text-xs font-bold text-center rounded-r-2xl">Waktu Scan</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
@@ -798,7 +1014,7 @@ export default function AdminPage() {
                               <td className="px-5 py-3.5 font-semibold text-slate-650">{log.nama_kategori || '-'}</td>
                               <td className="px-5 py-3.5 font-medium text-slate-600">{log.nama_kelompok || '-'}</td>
                               <td className="px-5 py-3.5 font-medium text-slate-650">{log.nama_desa || '-'}</td>
-                              <td className="px-5 py-3.5 text-center font-bold text-[#007ceb]">
+                              <td className="px-5 py-3.5 text-center font-bold text-[#63c5eb]">
                                 {new Date(log.waktu_scan).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
                               </td>
                             </tr>
@@ -806,6 +1022,35 @@ export default function AdminPage() {
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Mobile View: Cards */}
+                  <div className="block md:hidden space-y-3">
+                    {data.kehadiranLog?.slice(0, 10).length === 0 ? (
+                      <div className="text-center py-8 text-slate-400 font-semibold bg-white rounded-2xl border border-slate-100">
+                        Belum ada data scan sesi ini.
+                      </div>
+                    ) : (
+                      data.kehadiranLog?.slice(0, 10).map((log: any, idx: number) => (
+                        <div key={log.id} className="bg-white p-4 rounded-2xl border border-slate-150 shadow-xs space-y-2">
+                          <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                            <span className="font-bold text-slate-400 text-[10px]">#{idx + 1} • {log.peserta_id}</span>
+                            <span className="text-[10px] font-bold text-[#63c5eb]">
+                              {new Date(log.waktu_scan).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
+                            </span>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-xs">{log.nama_peserta}</h4>
+                            <div className="grid grid-cols-2 gap-2 mt-2 text-[10px] text-slate-500 font-semibold">
+                              <div>Kategori: <span className="text-slate-800 font-bold">{log.nama_kategori || '-'}</span></div>
+                              <div>Kelompok: <span className="text-slate-800 font-bold">{log.nama_kelompok || '-'}</span></div>
+                              <div>Desa: <span className="text-slate-800 font-bold">{log.nama_desa || '-'}</span></div>
+                              <div>Ukuran: <span className="text-slate-800 font-bold">{log.ukuran_baju || '-'}</span></div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -826,7 +1071,7 @@ export default function AdminPage() {
 
                   {activeSession ? (
                     <div className="space-y-6 text-center">
-                      <div className="bg-emerald-50 border border-emerald-250 rounded-2xl p-6">
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
                         <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Sesi Sedang Dibuka</p>
                         <h4 className="text-xl font-black text-slate-900 mt-2">{activeSession.nama_sesi}</h4>
                         <p className="text-xs text-slate-400 mt-1 font-semibold">
@@ -838,7 +1083,7 @@ export default function AdminPage() {
                           <div className="relative inline-block">
                             <span
                               onClick={() => handleCopyCode(activeSession.access_code)}
-                              className="inline-block bg-[#0066cc] hover:bg-[#0052a3] text-white font-mono font-black text-3xl px-6 py-3 rounded-2xl tracking-widest shadow-md cursor-pointer transition-all hover:scale-105 active:scale-95 select-all"
+                              className="inline-block bg-[#63c5eb] hover:bg-[#4baecd] text-white font-mono font-black text-3xl px-6 py-3 rounded-2xl tracking-widest shadow-md cursor-pointer transition-all hover:scale-105 active:scale-95 select-all"
                               title="Klik untuk menyalin"
                             >
                               {activeSession.access_code || '-'}
@@ -850,7 +1095,7 @@ export default function AdminPage() {
                             )}
                           </div>
                           <p className="text-[10px] text-slate-400 mt-5 font-semibold px-4 leading-relaxed">
-                            Klik pada kode di atas untuk menyalin, lalu bagikan ke petugas scan untuk digunakan masuk di rute <span className="text-[#0066cc] font-bold">/scan</span>.
+                            Klik pada kode di atas untuk menyalin, lalu bagikan ke petugas scan untuk digunakan masuk di rute <span className="text-[#63c5eb] font-bold">/scan</span>.
                           </p>
                         </div>
                       </div>
@@ -878,14 +1123,14 @@ export default function AdminPage() {
                           value={sessionNameInput}
                           onChange={(e) => setSessionNameInput(e.target.value)}
                           placeholder="Contoh: Pembukaan Hari 1, Sesi Malam"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-800 focus:outline-none focus:border-[#0066cc] focus:ring-1 focus:ring-[#0066cc]/30"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-800 focus:outline-none focus:border-[#63c5eb] focus:ring-1 focus:ring-[#63c5eb]/30"
                         />
                       </div>
 
                       <button
                         type="submit"
                         disabled={isTogglingSession || !sessionNameInput.trim()}
-                        className="w-full py-4 bg-[#0066cc] hover:bg-[#0052a3] disabled:bg-slate-300 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.99]"
+                        className="w-full py-4 bg-[#63c5eb] hover:bg-[#4baecd] disabled:bg-slate-300 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.99]"
                       >
                         {isTogglingSession ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-white" />}
                         BUKA SESI BARU & BUAT KODE AKSES
@@ -901,26 +1146,50 @@ export default function AdminPage() {
             {activeTab === 'riwayat' && (
               <div className="space-y-6">
 
-                <div className="border-b border-slate-200 pb-3 flex justify-between items-center">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-200 pb-4">
                   <div>
                     <h2 className="text-base font-bold text-slate-900">Riwayat Sesi Absensi</h2>
                     <p className="text-xs text-slate-400">Daftar seluruh sesi absensi yang pernah dibuka beserta total kehadiran peserta.</p>
                   </div>
-                  <button
-                    onClick={() => fetchDashboardData(false)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-[#0066cc] hover:underline"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    Refresh
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      onClick={exportSessionsToCsv}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xxs font-bold rounded-xl transition-all shadow-xs"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Export CSV</span>
+                    </button>
+                    <button
+                      onClick={exportSessionsToExcel}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-[#1ea5e1] hover:bg-[#2974c5] text-white text-xxs font-bold rounded-xl transition-all shadow-xs"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      <span>Export Excel</span>
+                    </button>
+                    <button
+                      onClick={exportSessionsToPdf}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-[#1ea5e1] hover:bg-[#2974c5] text-white text-xxs font-bold rounded-xl transition-all shadow-xs"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Export PDF</span>
+                    </button>
+                    <button
+                      onClick={() => fetchDashboardData(false)}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold rounded-xl transition-all border border-slate-200"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Refresh</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Session list table */}
-                <div className="overflow-x-auto rounded-2xl border border-slate-150 bg-white">
+                {/* Desktop View Table */}
+                <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-150 bg-white">
                   <table className="min-w-full divide-y divide-slate-150 text-left">
-                    <thead className="bg-[#007ceb] text-white">
+                    <thead className="bg-[#1ea5e1] text-white font-bold">
                       <tr>
-                        <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center w-12">No</th>
+                        <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center w-12 rounded-l-2xl">No</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold">Nama Sesi</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center">Tanggal</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center">Waktu Buka</th>
@@ -928,7 +1197,7 @@ export default function AdminPage() {
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center">Kode Akses</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center">Status</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center">Total Hadir</th>
-                        <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center w-28">Aksi</th>
+                        <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center w-72 rounded-r-2xl">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
@@ -952,7 +1221,7 @@ export default function AdminPage() {
                             <td className="px-5 py-4 text-center font-medium text-slate-600">
                               {s.tutup ? new Date(s.tutup).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : (s.status === 1 ? 'Sedang Berjalan' : '-')}
                             </td>
-                            <td className="px-5 py-4 text-center font-mono font-extrabold text-[#0066cc] tracking-wider">
+                            <td className="px-5 py-4 text-center font-mono font-extrabold text-[#63c5eb] tracking-wider">
                               {s.access_code || '-'}
                             </td>
                             <td className="px-5 py-4 text-center">
@@ -970,18 +1239,139 @@ export default function AdminPage() {
                               {s.total_hadir} Hadir
                             </td>
                             <td className="px-5 py-4 text-center">
-                              <button
-                                onClick={() => fetchHistoryAttendance(s)}
-                                className="px-3.5 py-1.5 bg-[#0066cc] hover:bg-[#0052a3] text-white font-bold text-xxs rounded-lg shadow-sm transition-all"
-                              >
-                                Lihat Detail
-                              </button>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => fetchHistoryAttendance(s)}
+                                  className="p-1.5 bg-sky-50 text-sky-600 hover:bg-[#63c5eb] hover:text-slate-900 border border-sky-100 rounded-lg shadow-xs transition-all active:scale-95 flex items-center justify-center"
+                                  title="Lihat Daftar Hadir Sesi"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => exportSingleSession(s, 'pdf')}
+                                  className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-100 rounded-lg shadow-xs transition-all active:scale-95 flex items-center justify-center"
+                                  title="Export PDF Kehadiran Sesi"
+                                >
+                                  <Printer className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => exportSingleSession(s, 'excel')}
+                                  className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white border border-emerald-100 rounded-lg shadow-xs transition-all active:scale-95 flex items-center justify-center"
+                                  title="Export Excel Kehadiran Sesi"
+                                >
+                                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                                </button>
+                                {s.status === 0 && (
+                                  <button
+                                    onClick={() => handleReopenSession(s.id, s.nama_sesi)}
+                                    className={`p-1.5 border rounded-lg shadow-xs transition-all active:scale-95 flex items-center justify-center ${
+                                      data?.activeSession
+                                        ? 'bg-slate-50 text-slate-355 border-slate-150 cursor-not-allowed'
+                                        : 'bg-indigo-50 text-indigo-650 hover:bg-indigo-650 hover:text-white border-indigo-100'
+                                    }`}
+                                    title={data?.activeSession ? 'Ada sesi lain yang sedang aktif' : 'Buka Kembali Sesi Ini'}
+                                    disabled={!!data?.activeSession}
+                                  >
+                                    <Play className="w-3.5 h-3.5 fill-current" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleDeleteSession(s.id, s.nama_sesi)}
+                                  className="p-1.5 bg-red-50 text-red-600 hover:bg-red-650 hover:text-white border border-red-100 rounded-lg shadow-xs transition-all active:scale-95 flex items-center justify-center"
+                                  title="Hapus Sesi"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile View: Cards */}
+                <div className="block md:hidden space-y-3">
+                  {data.sessionsList?.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 font-semibold bg-white rounded-2xl border border-slate-100">
+                      Belum ada riwayat sesi absensi.
+                    </div>
+                  ) : (
+                    data.sessionsList?.map((s: any, idx: number) => (
+                      <div key={s.id} className="bg-white p-4 rounded-2xl border border-slate-150 shadow-xs space-y-3">
+                        <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                          <span className="font-bold text-slate-400 text-[10px]">#{idx + 1} • {s.access_code || '-'}</span>
+                          {s.status === 1 ? (
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[9px] font-bold text-emerald-600">
+                              Aktif
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-[9px] font-bold text-slate-500">
+                              Tutup
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-sm">{s.nama_sesi}</h4>
+                          <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                            Tanggal: {new Date(s.tanggal).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </p>
+                          <div className="grid grid-cols-2 gap-2 mt-2.5 text-[11px] text-slate-500 font-semibold border-t border-slate-100 pt-2">
+                            <div>Buka: <span className="text-slate-800 font-bold">{s.buka ? new Date(s.buka).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</span></div>
+                            <div>Tutup: <span className="text-slate-800 font-bold">{s.tutup ? new Date(s.tutup).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : (s.status === 1 ? 'Aktif' : '-')}</span></div>
+                            <div className="col-span-2 text-[#1ea5e1] font-bold mt-1 text-xs">
+                              Kehadiran: {s.total_hadir} Peserta
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100 justify-end">
+                          <button
+                            onClick={() => fetchHistoryAttendance(s)}
+                            className="p-2 bg-sky-50 text-sky-600 hover:bg-[#63c5eb] hover:text-slate-900 border border-sky-100 rounded-lg shadow-xs transition-all active:scale-95 flex items-center justify-center"
+                            title="Detail Sesi"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => exportSingleSession(s, 'pdf')}
+                            className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-100 rounded-lg shadow-xs transition-all active:scale-95 flex items-center justify-center"
+                            title="Export PDF"
+                          >
+                            <Printer className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => exportSingleSession(s, 'excel')}
+                            className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white border border-emerald-100 rounded-lg shadow-xs transition-all active:scale-95 flex items-center justify-center"
+                            title="Export Excel"
+                          >
+                            <FileSpreadsheet className="w-4 h-4" />
+                          </button>
+                          {s.status === 0 && (
+                            <button
+                              onClick={() => handleReopenSession(s.id, s.nama_sesi)}
+                              className={`p-2 border rounded-lg shadow-xs transition-all active:scale-95 flex items-center justify-center ${
+                                data?.activeSession
+                                  ? 'bg-slate-50 text-slate-355 border-slate-150 cursor-not-allowed'
+                                  : 'bg-indigo-50 text-indigo-650 hover:bg-indigo-650 hover:text-white border-indigo-100'
+                              }`}
+                              title={data?.activeSession ? 'Ada sesi lain yang sedang aktif' : 'Buka Kembali Sesi Ini'}
+                              disabled={!!data?.activeSession}
+                            >
+                              <Play className="w-4 h-4 fill-current" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteSession(s.id, s.nama_sesi)}
+                            className="p-2 bg-red-50 text-red-650 hover:bg-red-650 hover:text-white border border-red-100 rounded-lg shadow-xs transition-all active:scale-95 flex items-center justify-center"
+                            title="Hapus Sesi"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 {/* Session Attendance Detail Modal */}
@@ -1009,7 +1399,7 @@ export default function AdminPage() {
                       <div className="p-6 overflow-y-auto flex-1">
                         {isLoadingHistoryAttendance ? (
                           <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-2">
-                            <Loader2 className="w-8 h-8 animate-spin text-[#0066cc]" />
+                            <Loader2 className="w-8 h-8 animate-spin text-[#63c5eb]" />
                             <span className="text-xs font-bold">Memuat daftar hadir...</span>
                           </div>
                         ) : historyAttendanceList.length === 0 ? (
@@ -1017,36 +1407,62 @@ export default function AdminPage() {
                             Tidak ada peserta yang hadir pada sesi ini.
                           </div>
                         ) : (
-                          <div className="overflow-x-auto rounded-xl border border-slate-150 bg-white">
-                            <table className="min-w-full divide-y divide-slate-150 text-left">
-                              <thead className="bg-[#007ceb] text-white">
-                                <tr>
-                                  <th scope="col" className="px-4 py-2.5 text-xxs font-bold text-center w-12">No</th>
-                                  <th scope="col" className="px-4 py-2.5 text-xxs font-bold">Nama</th>
-                                  <th scope="col" className="px-4 py-2.5 text-xxs font-bold">ID Peserta</th>
-                                  <th scope="col" className="px-4 py-2.5 text-xxs font-bold">Kategori</th>
-                                  <th scope="col" className="px-4 py-2.5 text-xxs font-bold">Kelompok</th>
-                                  <th scope="col" className="px-4 py-2.5 text-xxs font-bold">Desa</th>
-                                  <th scope="col" className="px-4 py-2.5 text-xxs font-bold text-center">Waktu Scan</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-100 text-slate-750 text-xxs">
-                                {historyAttendanceList.map((log: any, idx: number) => (
-                                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-4 py-3 text-center font-bold text-slate-450">{idx + 1}</td>
-                                    <td className="px-4 py-3 font-bold text-slate-900">{log.nama}</td>
-                                    <td className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider">{log.peserta_id}</td>
-                                    <td className="px-4 py-3 font-semibold text-slate-600">{log.nama_kategori || '-'}</td>
-                                    <td className="px-4 py-3 font-medium text-slate-650">{log.nama_kelompok || '-'}</td>
-                                    <td className="px-4 py-3 font-medium text-slate-600">{log.nama_desa || '-'}</td>
-                                    <td className="px-4 py-3 text-center font-bold text-[#007ceb]">
-                                      {new Date(log.waktu_scan).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
-                                    </td>
+                          <>
+                            {/* Desktop View Table */}
+                            <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-150 bg-white">
+                              <table className="min-w-full divide-y divide-slate-150 text-left">
+                                <thead className="bg-[#1ea5e1] text-white font-bold text-xxs">
+                                  <tr>
+                                    <th scope="col" className="px-4 py-2.5 text-xxs font-bold text-center w-12 rounded-l-2xl">No</th>
+                                    <th scope="col" className="px-4 py-2.5 text-xxs font-bold">Nama</th>
+                                    <th scope="col" className="px-4 py-2.5 text-xxs font-bold">ID Peserta</th>
+                                    <th scope="col" className="px-4 py-2.5 text-xxs font-bold">Kategori</th>
+                                    <th scope="col" className="px-4 py-2.5 text-xxs font-bold">Kelompok</th>
+                                    <th scope="col" className="px-4 py-2.5 text-xxs font-bold">Desa</th>
+                                    <th scope="col" className="px-4 py-2.5 text-xxs font-bold text-center rounded-r-2xl">Waktu Scan</th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-750 text-xxs">
+                                  {historyAttendanceList.map((log: any, idx: number) => (
+                                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                      <td className="px-4 py-3 text-center font-bold text-slate-450">{idx + 1}</td>
+                                      <td className="px-4 py-3 font-bold text-slate-900">{log.nama}</td>
+                                      <td className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider">{log.peserta_id}</td>
+                                      <td className="px-4 py-3 font-semibold text-slate-600">{log.nama_kategori || '-'}</td>
+                                      <td className="px-4 py-3 font-medium text-slate-650">{log.nama_kelompok || '-'}</td>
+                                      <td className="px-4 py-3 font-medium text-slate-600">{log.nama_desa || '-'}</td>
+                                      <td className="px-4 py-3 text-center font-bold text-[#63c5eb]">
+                                        {new Date(log.waktu_scan).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Mobile View: Cards */}
+                            <div className="block md:hidden space-y-3">
+                              {historyAttendanceList.map((log: any, idx: number) => (
+                                <div key={idx} className="bg-slate-50 p-4.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                                  <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                                    <span className="font-bold text-slate-400 text-[10px]">#{idx + 1} • {log.peserta_id}</span>
+                                    <span className="text-[10px] font-bold text-[#63c5eb]">
+                                      {new Date(log.waktu_scan).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-bold text-slate-900 text-xs">{log.nama}</h4>
+                                    <div className="grid grid-cols-2 gap-2 mt-2 text-[10px] text-slate-500 font-semibold">
+                                      <div>Kategori: <span className="text-slate-800 font-bold">{log.nama_kategori || '-'}</span></div>
+                                      <div>Kelompok: <span className="text-slate-800 font-bold">{log.nama_kelompok || '-'}</span></div>
+                                      <div>Desa: <span className="text-slate-800 font-bold">{log.nama_desa || '-'}</span></div>
+                                      <div>Ukuran: <span className="text-slate-800 font-bold">{log.ukuran_baju || '-'}</span></div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </>
                         )}
                       </div>
 
@@ -1076,7 +1492,7 @@ export default function AdminPage() {
                     <h2 className="text-lg font-extrabold text-slate-900">List Peserta</h2>
                     <div className="flex items-center gap-1 text-slate-400 text-xxs font-semibold mt-0.5 uppercase tracking-wide">
                       <span>Sort by</span>
-                      <span className="text-[#007ceb] flex items-center gap-0.5 cursor-pointer hover:underline">
+                      <span className="text-[#1ea5e1] flex items-center gap-0.5 cursor-pointer hover:underline">
                         Recently <ChevronDown className="w-3 h-3" />
                       </span>
                     </div>
@@ -1094,15 +1510,22 @@ export default function AdminPage() {
 
                     <button
                       onClick={exportToPdf}
-                      className="flex items-center gap-1.5 px-4.5 py-2.5 bg-[#007ceb] hover:bg-blue-600 text-white text-xs font-bold rounded-xl transition-all shadow-md"
+                      className="flex items-center gap-1.5 px-4.5 py-2.5 bg-[#1ea5e1] hover:bg-[#2974c5] text-white text-xs font-bold rounded-xl transition-all shadow-md"
                     >
                       <Printer className="w-4 h-4" />
-                      <span>Print PDF</span>
+                      <span>Print</span>
                     </button>
 
                     <button
-                      onClick={() => alert(`Format Link: ${window.location.origin}/saran\nBagikan tautan ini ke peserta.`)}
-                      className="flex items-center gap-1.5 px-4.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition-all shadow-md"
+                      onClick={() => {
+                        if (navigator.clipboard) {
+                          navigator.clipboard.writeText(`${window.location.origin}/saran`);
+                          alert('Tautan saran berhasil disalin ke clipboard!');
+                        } else {
+                          alert(`Tautan: ${window.location.origin}/saran`);
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-4.5 py-2.5 bg-[#1ea5e1] hover:bg-[#2974c5] text-white text-xs font-bold rounded-xl transition-all shadow-md"
                     >
                       <Share2 className="w-4 h-4" />
                       <span>Share</span>
@@ -1114,7 +1537,7 @@ export default function AdminPage() {
                 {showAddForm && (
                   <div className="bg-slate-50 border border-slate-150 rounded-2xl p-5 shadow-inner">
                     <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-1">
-                      <Sparkles className="w-4.5 h-4.5 text-[#0066cc]" />
+                      <Sparkles className="w-4.5 h-4.5 text-[#63c5eb]" />
                       Form Registrasi Peserta Baru
                     </h3>
 
@@ -1127,7 +1550,7 @@ export default function AdminPage() {
                           value={newPesertaId}
                           onChange={(e) => setNewPesertaId(e.target.value)}
                           placeholder="Contoh: PES-009"
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#0066cc]"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
                         />
                       </div>
 
@@ -1139,7 +1562,7 @@ export default function AdminPage() {
                           value={newPesertaNama}
                           onChange={(e) => setNewPesertaNama(e.target.value)}
                           placeholder="Contoh: Khidir Afwan"
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#0066cc]"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
                         />
                       </div>
 
@@ -1149,7 +1572,7 @@ export default function AdminPage() {
                           required
                           value={newPesertaKategori}
                           onChange={(e) => setNewPesertaKategori(e.target.value)}
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#0066cc]"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
                         >
                           <option value="">-- Pilih Kategori --</option>
                           {data.lookups?.kategoris.map((k: any) => (
@@ -1164,7 +1587,7 @@ export default function AdminPage() {
                           required
                           value={newPesertaKelompok}
                           onChange={(e) => setNewPesertaKelompok(e.target.value)}
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#0066cc]"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
                         >
                           <option value="">-- Pilih Kelompok --</option>
                           {data.lookups?.kelompoks.map((kl: any) => (
@@ -1179,7 +1602,7 @@ export default function AdminPage() {
                           required
                           value={newPesertaDesa}
                           onChange={(e) => setNewPesertaDesa(e.target.value)}
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#0066cc]"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
                         >
                           <option value="">-- Pilih Desa --</option>
                           {data.lookups?.desas.map((d: any) => (
@@ -1193,7 +1616,7 @@ export default function AdminPage() {
                         <select
                           value={newPesertaKelamin}
                           onChange={(e) => setNewPesertaKelamin(e.target.value)}
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#0066cc]"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
                         >
                           <option value="1">Laki-laki</option>
                           <option value="2">Perempuan</option>
@@ -1207,7 +1630,7 @@ export default function AdminPage() {
                           value={newPesertaTelp}
                           onChange={(e) => setNewPesertaTelp(e.target.value)}
                           placeholder="Contoh: 0812..."
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#0066cc]"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
                         />
                       </div>
 
@@ -1216,7 +1639,7 @@ export default function AdminPage() {
                         <select
                           value={newPesertaUkuran}
                           onChange={(e) => setNewPesertaUkuran(e.target.value)}
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#0066cc]"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
                         >
                           {['S', 'M', 'L', 'XL', 'XXL', 'XXXL'].map((sz) => (
                             <option key={sz} value={sz}>{sz}</option>
@@ -1259,7 +1682,7 @@ export default function AdminPage() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Cari nama atau ID..."
-                      className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-xs text-slate-800 placeholder:text-slate-450 focus:outline-none focus:border-[#007ceb]"
+                      className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-xs text-slate-800 placeholder:text-slate-450 focus:outline-none focus:border-[#63c5eb]"
                     />
                     <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-3" />
                   </div>
@@ -1268,7 +1691,7 @@ export default function AdminPage() {
                   <select
                     value={filterKategori}
                     onChange={(e) => setFilterKategori(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#007ceb]"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
                   >
                     <option value="">Semua Kategori</option>
                     {uniqueKategoris.map((k: any) => (
@@ -1280,7 +1703,7 @@ export default function AdminPage() {
                   <select
                     value={filterKelompok}
                     onChange={(e) => setFilterKelompok(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#007ceb]"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
                   >
                     <option value="">Semua Kelompok</option>
                     {uniqueKelompoks.map((k: any) => (
@@ -1292,7 +1715,7 @@ export default function AdminPage() {
                   <select
                     value={filterDesa}
                     onChange={(e) => setFilterDesa(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#007ceb]"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
                   >
                     <option value="">Semua Desa</option>
                     {uniqueDesas.map((d: any) => (
@@ -1301,17 +1724,17 @@ export default function AdminPage() {
                   </select>
                 </div>
 
-                {/* Participants list table (Layout matching Page 3 PDF) */}
-                <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                {/* Participants list table (Layout matching Page 3 PDF                {/* Desktop View Table */}
+                <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-100">
                   <table className="min-w-full divide-y divide-slate-150 text-left">
-                    <thead className="bg-[#007ceb] text-white">
+                    <thead className="bg-[#1ea5e1] text-white font-bold">
                       <tr>
-                        <th scope="col" className="px-5 py-3.5 text-xs font-bold">Nama</th>
+                        <th scope="col" className="px-5 py-3.5 text-xs font-bold rounded-l-2xl">Nama</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold">Kategori</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold">Kelompok</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold">Desa</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center">Ukuran</th>
-                        <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center print:hidden">Aksi</th>
+                        <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center rounded-r-2xl print:hidden">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-100 text-slate-700 text-xs">
@@ -1330,15 +1753,15 @@ export default function AdminPage() {
                                 <span className="text-[10px] text-slate-450 font-bold block mt-0.5 uppercase tracking-wider">{p.id}</span>
                               </div>
                             </td>
-                            <td className="px-5 py-4 font-semibold text-slate-650">{p.nama_kategori || '-'}</td>
+                            <td className="px-5 py-4 font-semibold text-slate-655">{p.nama_kategori || '-'}</td>
                             <td className="px-5 py-4 font-semibold text-slate-600">{p.nama_kelompok || '-'}</td>
-                            <td className="px-5 py-4 font-semibold text-slate-650">{p.nama_desa || '-'}</td>
+                            <td className="px-5 py-4 font-semibold text-slate-655">{p.nama_desa || '-'}</td>
                             <td className="px-5 py-4 text-center font-black text-slate-800">{p.ukuran_baju || '-'}</td>
                             <td className="px-5 py-4 text-center print:hidden whitespace-nowrap">
                               <div className="flex items-center justify-center gap-2">
                                 <button
                                   onClick={() => triggerPrintQr(p)}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#007ceb]/10 text-[#007ceb] hover:bg-[#007ceb] hover:text-white font-bold text-[10px] rounded-lg transition-all"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#63c5eb]/10 text-[#63c5eb] hover:bg-[#63c5eb] hover:text-white font-bold text-[10px] rounded-lg transition-all"
                                   title="Print Participant QR Card"
                                 >
                                   <Printer className="w-3.5 h-3.5" />
@@ -1360,23 +1783,64 @@ export default function AdminPage() {
                   </table>
                 </div>
 
+                {/* Mobile View: Cards */}
+                <div className="block md:hidden space-y-3">
+                  {filteredPeserta.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 font-semibold bg-white rounded-2xl border border-slate-100">
+                      Tidak ada data peserta yang cocok.
+                    </div>
+                  ) : (
+                    filteredPeserta.map((p: any) => (
+                      <div key={p.id} className="bg-white p-4 rounded-2xl border border-slate-150 shadow-xs space-y-3">
+                        <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                          <span className="font-extrabold text-slate-900 text-sm">{p.nama}</span>
+                          <span className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">{p.id}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 font-semibold">
+                          <div>Kategori: <span className="text-slate-800 font-bold">{p.nama_kategori || '-'}</span></div>
+                          <div>Kelompok: <span className="text-slate-800 font-bold">{p.nama_kelompok || '-'}</span></div>
+                          <div>Desa: <span className="text-slate-800 font-bold">{p.nama_desa || '-'}</span></div>
+                          <div>Ukuran: <span className="text-slate-800 font-bold">{p.ukuran_baju || '-'}</span></div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 justify-end">
+                          <button
+                            onClick={() => triggerPrintQr(p)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#63c5eb]/10 text-[#63c5eb] hover:bg-[#63c5eb] hover:text-white font-bold text-[10px] rounded-lg transition-all"
+                            title="Print Participant QR Card"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>Cetak QR</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteParticipant(p.id, p.nama)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-slate-100 transition-colors"
+                            title="Hapus Peserta"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
                 {/* Show More Chevron Down footer (mockup matching) */}
-                <div className="flex flex-col items-center justify-center pt-2 border-t border-slate-100 text-[10px] font-extrabold text-[#007ceb]">
+                <div className="flex flex-col items-center justify-center pt-2 border-t border-slate-100 text-[10px] font-extrabold text-[#63c5eb]">
                   <span className="cursor-pointer hover:underline uppercase tracking-widest flex items-center gap-1">
                     Show More
                   </span>
-                  <ChevronDown className="w-4 h-4 text-[#007ceb] mt-0.5 animate-bounce" />
+                  <ChevronDown className="w-4 h-4 text-[#63c5eb] mt-0.5 animate-bounce" />
                 </div>
 
               </div>
             )}
 
             {/* ==================== TAB 3: REPORTING ==================== */}
-            {activeTab === 'reporting' && (
+            {activeTab === 'database' && (
               <div className="space-y-6">
 
                 <div className="border-b border-slate-200 pb-3">
-                  <h2 className="text-base font-bold text-slate-900">Reporting & Data Tools</h2>
+                  <h2 className="text-base font-bold text-slate-900">Database & Data Tools</h2>
                   <p className="text-xs text-slate-400">Unggah data peserta masal atau unduh hasil rekapitulasi kehadiran.</p>
                 </div>
 
@@ -1384,7 +1848,7 @@ export default function AdminPage() {
                   {/* Panel Import Data */}
                   <div className="bg-slate-50 border border-slate-150 rounded-2xl p-5 shadow-xs space-y-4">
                     <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-2 flex items-center gap-1.5">
-                      <Download className="w-4.5 h-4.5 text-[#0066cc]" />
+                      <Download className="w-4.5 h-4.5 text-[#63c5eb]" />
                       Import Data Peserta
                     </h3>
                     <p className="text-[11px] text-slate-500 leading-relaxed">
@@ -1424,7 +1888,7 @@ export default function AdminPage() {
                   {/* Panel Export Data */}
                   <div className="bg-slate-50 border border-slate-150 rounded-2xl p-5 shadow-xs space-y-4">
                     <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-2 flex items-center gap-1.5">
-                      <FileSpreadsheet className="w-4.5 h-4.5 text-[#0066cc]" />
+                      <FileSpreadsheet className="w-4.5 h-4.5 text-[#63c5eb]" />
                       Export Data Peserta
                     </h3>
                     <p className="text-[11px] text-slate-500 leading-relaxed">
@@ -1450,7 +1914,7 @@ export default function AdminPage() {
 
                       <button
                         onClick={exportToPdf}
-                        className="flex items-center justify-center gap-1.5 px-4 py-3 bg-blue-50 hover:bg-blue-100 text-[#007ceb] border border-blue-200 text-xs font-bold rounded-xl transition-all"
+                        className="flex items-center justify-center gap-1.5 px-4 py-3 bg-blue-50 hover:bg-blue-100 text-[#63c5eb] border border-blue-200 text-xs font-bold rounded-xl transition-all"
                       >
                         <Printer className="w-4 h-4" />
                         <span>Export PDF</span>
@@ -1473,7 +1937,7 @@ export default function AdminPage() {
 
                 <div className="max-w-md bg-slate-50 border border-slate-150 rounded-2xl p-5 shadow-xs">
                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-2 mb-4 flex items-center gap-1.5">
-                    <Smartphone className="w-4.5 h-4.5 text-[#0066cc]" />
+                    <Smartphone className="w-4.5 h-4.5 text-[#63c5eb]" />
                     Batasi Akses Scanner Absensi
                   </h3>
 
@@ -1487,12 +1951,12 @@ export default function AdminPage() {
                           required
                           value={scannerLimitInput}
                           onChange={(e) => setScannerLimitInput(e.target.value)}
-                          className="bg-white border border-slate-250 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-bold focus:outline-none w-28 focus:border-[#0066cc]"
+                          className="bg-white border border-slate-250 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-bold focus:outline-none w-28 focus:border-[#63c5eb]"
                         />
                         <button
                           type="submit"
                           disabled={isSavingSettings}
-                          className="px-5 py-2.5 bg-[#0066cc] hover:bg-[#0052a3] text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5"
+                          className="px-5 py-2.5 bg-[#63c5eb] hover:bg-[#4baecd] text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5"
                         >
                           {isSavingSettings && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                           <span>Simpan Pengaturan</span>

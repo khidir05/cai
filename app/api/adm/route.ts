@@ -244,6 +244,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'Saran berhasil dihapus.' });
     }
 
+    // 6a. Delete Session (including its attendance logs)
+    if (action === 'delete_session') {
+      const { sessionId } = body;
+      if (!sessionId) {
+        return NextResponse.json({ success: false, message: 'ID Sesi wajib disertakan.' }, { status: 400 });
+      }
+      await query('DELETE FROM kehadiran WHERE sesi = ?', [sessionId]);
+      await query('DELETE FROM sesi WHERE id = ?', [sessionId]);
+      return NextResponse.json({ success: true, message: 'Sesi dan data kehadiran terkait berhasil dihapus.' });
+    }
+
+    // 6b. Reopen Session
+    if (action === 'reopen_session') {
+      const { sessionId } = body;
+      if (!sessionId) {
+        return NextResponse.json({ success: false, message: 'ID Sesi wajib disertakan.' }, { status: 400 });
+      }
+      // Double check active session
+      const active = await query('SELECT id FROM sesi WHERE status = 1 LIMIT 1');
+      if (active && active.length > 0) {
+        return NextResponse.json({ success: false, message: 'Gagal membuka kembali. Ada sesi lain yang sedang aktif berjalan!' }, { status: 400 });
+      }
+      await query('UPDATE sesi SET status = 1, tutup = NULL WHERE id = ?', [sessionId]);
+      return NextResponse.json({ success: true, message: 'Sesi berhasil dibuka kembali.' });
+    }
+
     // 7. Import participants mass data (Excel/CSV)
     if (action === 'import_peserta') {
       const { pesertaList } = body;

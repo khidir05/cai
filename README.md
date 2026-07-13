@@ -12,6 +12,8 @@ yarn dev
 pnpm dev
 # or
 bun dev
+# or setup database first
+node scripts/setup-db.js
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.

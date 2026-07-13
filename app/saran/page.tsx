@@ -54,9 +54,9 @@ export default function SaranPage() {
       className="flex flex-col min-h-screen bg-cover bg-center bg-no-repeat bg-fixed text-slate-800 font-sans"
       style={{ backgroundImage: "url('/bg.jpeg')" }}
     >
-      <div className="absolute inset-0 bg-[#0066cc]/5 backdrop-blur-2xs pointer-events-none" />
+      <div className="absolute inset-0 bg-[#63c5eb]/5 backdrop-blur-2xs pointer-events-none" />
       {/* Premium Blue Header */}
-      <header className="sticky top-0 z-45 w-full bg-[#0066cc] px-4 py-4 flex items-center justify-between shadow-md">
+      <header className="sticky top-0 z-45 w-full bg-[#63c5eb] px-4 py-4 flex items-center justify-between shadow-md">
         <div className="w-6" /> {/* spacer */}
         <div className="flex items-center gap-2 font-bold text-white tracking-wider uppercase">
           <MessageSquare className="w-5 h-5" />
@@ -92,11 +92,11 @@ export default function SaranPage() {
             {/* Embedded Logo on Form */}
             <img src="/logo.png" alt="CAI Logo" className="h-16 mb-4 object-contain" />
             <h2 className="text-sm font-black text-slate-900 tracking-widest uppercase mb-1">CAI 47 Ciltim 1</h2>
-            <div className="w-8 h-1 bg-[#0066cc] rounded-full mb-6" />
+            <div className="w-8 h-1 bg-[#63c5eb] rounded-full mb-6" />
 
             <div className="mb-6 text-center w-full">
               <h3 className="text-base font-extrabold text-slate-900 flex items-center justify-center gap-1.5 leading-snug">
-                <Sparkles className="w-4.5 h-4.5 text-[#0066cc]" />
+                <Sparkles className="w-4.5 h-4.5 text-[#63c5eb]" />
                 Form Tanggapan
               </h3>
               <p className="text-slate-400 text-[11px] font-medium mt-1.5 leading-relaxed px-2">
@@ -116,7 +116,7 @@ export default function SaranPage() {
                   value={pesan}
                   onChange={(e) => setPesan(e.target.value)}
                   placeholder="Tuliskan kritik dan saran Anda untuk kelancaran acara..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs text-slate-800 focus:outline-none focus:border-[#0066cc] focus:ring-1 focus:ring-[#0066cc]/30 transition-all placeholder:text-slate-400 resize-none font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs text-slate-800 focus:outline-none focus:border-[#63c5eb] focus:ring-1 focus:ring-[#63c5eb]/30 transition-all placeholder:text-slate-400 resize-none font-medium"
                 />
               </div>
 
@@ -130,7 +130,7 @@ export default function SaranPage() {
                   value={kesan}
                   onChange={(e) => setKesan(e.target.value)}
                   placeholder="Apa kesan atau pengalaman yang paling berkesan bagi Anda?"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs text-slate-800 focus:outline-none focus:border-[#0066cc] focus:ring-1 focus:ring-[#0066cc]/30 transition-all placeholder:text-slate-400 resize-none font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs text-slate-800 focus:outline-none focus:border-[#63c5eb] focus:ring-1 focus:ring-[#63c5eb]/30 transition-all placeholder:text-slate-400 resize-none font-medium"
                 />
               </div>
 
@@ -138,7 +138,7 @@ export default function SaranPage() {
               <button
                 type="submit"
                 disabled={isSubmitting || !pesan.trim()}
-                className="w-full py-4 bg-[#0066cc] hover:bg-[#0052a3] disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.99]"
+                className="w-full py-4 bg-[#63c5eb] hover:bg-[#4baecd] disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.99]"
               >
                 {isSubmitting ? (
                   <>

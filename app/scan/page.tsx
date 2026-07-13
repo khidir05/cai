@@ -297,15 +297,15 @@ export default function ScanPage() {
         className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat bg-fixed p-6 font-sans text-slate-800"
         style={{ backgroundImage: "url('/bg.jpeg')" }}
       >
-        <div className="absolute inset-0 bg-[#0066cc]/10 backdrop-blur-xs pointer-events-none" />
+        <div className="absolute inset-0 bg-[#63c5eb]/10 backdrop-blur-xs pointer-events-none" />
         
         <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 p-6 flex flex-col items-center shadow-2xl relative z-10">
           <img src="/logo.png" alt="CAI Logo" className="h-16 mb-4 object-contain" />
           <h2 className="text-sm font-black text-slate-900 tracking-widest uppercase mb-1">CAI 47 Ciltim 1</h2>
-          <div className="w-8 h-1 bg-[#0066cc] rounded-full mb-6" />
+          <div className="w-8 h-1 bg-[#63c5eb] rounded-full mb-6" />
 
           <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <KeyRound className="w-4.5 h-4.5 text-[#0066cc]" />
+            <KeyRound className="w-4.5 h-4.5 text-[#63c5eb]" />
             Aktivasi Scanner
           </h3>
           <p className="text-slate-400 text-[10px] text-center font-medium mb-5 px-3 leading-relaxed">
@@ -319,7 +319,7 @@ export default function ScanPage() {
               value={accessInput}
               onChange={(e) => setAccessInput(e.target.value)}
               placeholder="Contoh: SCAN47"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center text-sm font-bold uppercase tracking-wider focus:outline-none focus:border-[#0066cc] focus:ring-1 focus:ring-[#0066cc]/20"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center text-sm font-bold uppercase tracking-wider focus:outline-none focus:border-[#63c5eb] focus:ring-1 focus:ring-[#63c5eb]/20"
             />
 
             {codeError && (
@@ -329,7 +329,7 @@ export default function ScanPage() {
             <button
               type="submit"
               disabled={isVerifyingCode || !accessInput.trim()}
-              className="w-full py-3.5 bg-[#0066cc] hover:bg-[#0052a3] disabled:bg-slate-200 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.99]"
+              className="w-full py-3.5 bg-[#63c5eb] hover:bg-[#4baecd] text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.99]"
             >
               {isVerifyingCode ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : 'Aktifkan Kamera'}
             </button>
@@ -346,10 +346,10 @@ export default function ScanPage() {
         className="flex flex-col items-center justify-center min-h-screen bg-cover bg-center bg-no-repeat bg-fixed p-6 text-center font-sans text-slate-800"
         style={{ backgroundImage: "url('/bg.jpeg')" }}
       >
-        <div className="absolute inset-0 bg-[#0066cc]/10 backdrop-blur-xs pointer-events-none" />
+        <div className="absolute inset-0 bg-[#63c5eb]/10 backdrop-blur-xs pointer-events-none" />
         
         <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 p-8 flex flex-col items-center shadow-2xl relative z-10">
-          <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 text-red-650 flex items-center justify-center mb-5 shadow-sm">
+          <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 text-red-600 flex items-center justify-center mb-5 shadow-sm">
             <AlertTriangle className="w-8 h-8 animate-bounce" />
           </div>
           <h1 className="text-lg font-black text-slate-900 tracking-tight">Akses Scanner Dibatasi</h1>
@@ -371,10 +371,10 @@ export default function ScanPage() {
         className="flex flex-col min-h-screen bg-cover bg-center bg-no-repeat bg-fixed text-slate-800 font-sans"
         style={{ backgroundImage: "url('/bg.jpeg')" }}
       >
-        <div className="absolute inset-0 bg-[#0066cc]/5 backdrop-blur-2xs pointer-events-none" />
+        <div className="absolute inset-0 bg-[#63c5eb]/5 backdrop-blur-2xs pointer-events-none" />
 
         {/* Custom Blue Header */}
-        <header className="sticky top-0 z-40 w-full bg-[#0066cc] px-4 py-4 flex items-center shadow-md relative z-10">
+        <header className="sticky top-0 z-40 w-full bg-[#63c5eb] px-4 py-4 flex items-center shadow-md relative z-10">
           <button 
             onClick={() => {
               if(confirm('Keluar dari mode scanner?')) {
@@ -401,7 +401,7 @@ export default function ScanPage() {
             {/* Logo inside Card */}
             <img src="/logo.png" alt="CAI Logo" className="h-12 mb-3 object-contain" />
             <h2 className="text-sm font-black text-slate-900 tracking-widest uppercase mb-1">CAI 47 Ciltim 1</h2>
-            <div className="w-6 h-0.5 bg-[#0066cc] rounded-full mb-4" />
+            <div className="w-6 h-0.5 bg-[#63c5eb] rounded-full mb-4" />
 
             <h2 className="text-base font-extrabold text-slate-950 uppercase tracking-wide">
               SCAN DISINI
@@ -453,8 +453,8 @@ export default function ScanPage() {
 
               {scanStatus === 'error' && (
                 <div className="flex flex-col items-center animate-scale-up">
-                  <span className="text-red-650 font-black text-sm block tracking-widest uppercase">Stop!!</span>
-                  <p className="text-red-650 font-extrabold text-[11px] mt-0.5 leading-normal uppercase tracking-wider">
+                  <span className="text-red-600 font-black text-sm block tracking-widest uppercase">Stop!!</span>
+                  <p className="text-red-600 font-extrabold text-[11px] mt-0.5 leading-normal uppercase tracking-wider">
                     Peserta {scannedParticipant?.nama} sudah Cek in
                   </p>
                 </div>
@@ -473,7 +473,7 @@ export default function ScanPage() {
           <div className="mt-6 w-full max-w-[340px]">
             <button
               onClick={() => setViewMode('data')}
-              className="w-full py-4.5 bg-[#0066cc] hover:bg-[#0052a3] text-white font-bold text-xs rounded-2xl transition-all shadow-md active:scale-[0.99]"
+              className="w-full py-4.5 bg-[#63c5eb] hover:bg-[#4baecd] text-white font-bold text-xs rounded-2xl transition-all shadow-md active:scale-[0.99]"
             >
               LIHAT DATA
             </button>
@@ -490,10 +490,10 @@ export default function ScanPage() {
       className="flex flex-col min-h-screen bg-cover bg-center bg-no-repeat bg-fixed text-slate-800 font-sans"
       style={{ backgroundImage: "url('/bg.jpeg')" }}
     >
-      <div className="absolute inset-0 bg-[#0066cc]/5 backdrop-blur-2xs pointer-events-none" />
+      <div className="absolute inset-0 bg-[#63c5eb]/5 backdrop-blur-2xs pointer-events-none" />
 
       {/* Custom Blue Header */}
-      <header className="sticky top-0 z-40 w-full bg-[#0066cc] px-4 py-4 flex items-center shadow-md relative z-10">
+      <header className="sticky top-0 z-40 w-full bg-[#63c5eb] px-4 py-4 flex items-center shadow-md relative z-10">
         <button 
           onClick={() => setViewMode('scan')}
           className="text-white hover:opacity-85 transition-opacity"
@@ -513,7 +513,7 @@ export default function ScanPage() {
           
           {isLoadingData && kehadiranList.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-2">
-              <Loader2 className="w-8 h-8 animate-spin text-[#0066cc]" />
+              <Loader2 className="w-8 h-8 animate-spin text-[#63c5eb]" />
               <span className="text-xs">Memuat data kehadiran...</span>
             </div>
           ) : kehadiranList.length === 0 ? (
