@@ -46,6 +46,8 @@ async function run() {
     await connection.query('DROP TABLE IF EXISTS kelompok');
     await connection.query('DROP TABLE IF EXISTS kategori');
     await connection.query('DROP TABLE IF EXISTS desa');
+    await connection.query('DROP TABLE IF EXISTS settings');
+    await connection.query('DROP TABLE IF EXISTS scanner_sessions');
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
 
     // 2. Create Table desa
@@ -86,6 +88,7 @@ async function run() {
         kelompok INT,
         kelamin TINYINT COMMENT '1 laki2, 2 perempuan',
         telp VARCHAR(20),
+        ukuran_baju VARCHAR(50),
         FOREIGN KEY (kategori) REFERENCES kategori(id) ON DELETE SET NULL,
         FOREIGN KEY (desa) REFERENCES desa(id) ON DELETE SET NULL,
         FOREIGN KEY (kelompok) REFERENCES kelompok(id) ON DELETE SET NULL
@@ -102,6 +105,7 @@ async function run() {
         buka TIMESTAMP NULL DEFAULT NULL,
         tutup TIMESTAMP NULL DEFAULT NULL,
         status TINYINT(1) DEFAULT 0 COMMENT '1 buka',
+        access_code VARCHAR(50) DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB;
     `);
@@ -129,78 +133,103 @@ async function run() {
       ) ENGINE=InnoDB;
     `);
 
+    // 9. Create Table settings
+    console.log('Creating table: settings...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        \`key\` VARCHAR(255) PRIMARY KEY,
+        \`value\` VARCHAR(255) NOT NULL
+      ) ENGINE=InnoDB;
+    `);
+
+    // 10. Create Table scanner_sessions
+    console.log('Creating table: scanner_sessions...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS scanner_sessions (
+        session_id VARCHAR(255) PRIMARY KEY,
+        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;
+    `);
+
     console.log('All tables checked/created successfully.');
 
-    // 9. Seeding Lookup Tables (if empty)
-    const [desaCount] = await connection.query('SELECT COUNT(*) as count FROM desa');
-    if (desaCount[0].count === 0) {
-      console.log('Seeding table: desa...');
-      await connection.query(`
-        INSERT INTO desa (nama_desa) VALUES 
-        ('Sukamaju'), 
-        ('Sukasari'), 
-        ('Mekarjaya'), 
-        ('Bojongsoang'),
-        ('Margahayu')
-      `);
+    // 11. Seeding Lookup Tables (if empty)
+    console.log('Seeding table: desa...');
+    await connection.query(`
+      INSERT INTO desa (nama_desa) VALUES 
+      ('Cilacap Kota'), 
+      ('Cilacap Selatan'), 
+      ('Cilacap Tengah'), 
+      ('Cilacap Utara')
+    `);
+
+    console.log('Seeding table: kategori...');
+    await connection.query(`
+      INSERT INTO kategori (nama_kategori) VALUES 
+      ('Kiriman'), 
+      ('KI'), 
+      ('4S'), 
+      ('MT'), 
+      ('Pondok')
+    `);
+
+    console.log('Seeding table: kelompok...');
+    await connection.query(`
+      INSERT INTO kelompok (nama_kelompok) VALUES 
+      ('Cilacap 1'), 
+      ('Cilacap 2'), 
+      ('Cilacap 3'), 
+      ('Cilacap 4'), 
+      ('Cilacap 5')
+    `);
+
+    console.log('Seeding table: settings...');
+    await connection.query(`
+      INSERT INTO settings (\`key\`, \`value\`) VALUES 
+      ('max_scanners', '5')
+    `);
+
+    // 12. Seeding Peserta
+    console.log('Seeding table: peserta...');
+    const [desas] = await connection.query('SELECT id, nama_desa FROM desa');
+    const [kategoris] = await connection.query('SELECT id, nama_kategori FROM kategori');
+    const [kelompoks] = await connection.query('SELECT id, nama_kelompok FROM kelompok');
+
+    const getDesaId = (name) => desas.find(d => d.nama_desa === name)?.id;
+    const getKatId = (name) => kategoris.find(k => k.nama_kategori === name)?.id;
+    const getKelId = (name) => kelompoks.find(k => k.nama_kelompok === name)?.id;
+
+    // Seeding matches the names in the PDF screenshot (Page 2 & Page 3)
+    const mockPeserta = [
+      ['PES-001', 'Nabila Syakieb', getKatId('Kiriman'), getDesaId('Cilacap Kota'), getKelId('Cilacap 1'), 2, '081234567890', 'M'],
+      ['PES-002', 'Ibrahim', getKatId('KI'), getDesaId('Cilacap Kota'), getKelId('Cilacap 2'), 1, '081234567891', 'XXL'],
+      ['PES-003', 'Hasan Abdullah', getKatId('Kiriman'), getDesaId('Cilacap Kota'), getKelId('Cilacap 3'), 1, '081234567892', 'L'],
+      ['PES-004', 'Bintang Kejora', getKatId('KI'), getDesaId('Cilacap Kota'), getKelId('Cilacap 4'), 1, '081234567893', 'L'],
+      ['PES-005', 'Muti\'atun', getKatId('Kiriman'), getDesaId('Cilacap Kota'), getKelId('Cilacap 5'), 2, '081234567894', 'M'],
+      ['PES-006', 'Ahmad Fauzi', getKatId('4S'), getDesaId('Cilacap Selatan'), getKelId('Cilacap 1'), 1, '081234567895', 'XL'],
+      ['PES-007', 'Citra Lestari', getKatId('MT'), getDesaId('Cilacap Tengah'), getKelId('Cilacap 2'), 2, '081234567896', 'S'],
+      ['PES-008', 'Dedi Wijaya', getKatId('Pondok'), getDesaId('Cilacap Utara'), getKelId('Cilacap 3'), 1, '081234567897', 'XXL'],
+    ];
+
+    for (const p of mockPeserta) {
+      await connection.query(
+        'INSERT INTO peserta (id, nama, kategori, desa, kelompok, kelamin, telp, ukuran_baju) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        p
+      );
     }
+    console.log(`Seeded ${mockPeserta.length} mock participants.`);
 
-    const [kategoriCount] = await connection.query('SELECT COUNT(*) as count FROM kategori');
-    if (kategoriCount[0].count === 0) {
-      console.log('Seeding table: kategori...');
-      await connection.query(`
-        INSERT INTO kategori (nama_kategori) VALUES 
-        ('Peserta'), 
-        ('Panitia'), 
-        ('Tamu Undangan'), 
-        ('Pemateri')
-      `);
-    }
+    // 13. Seeding 1 Active Session
+    console.log('Seeding initial active session...');
+    const crypto = require('crypto');
+    const sessionId = crypto.randomUUID();
+    const today = new Date().toISOString().slice(0, 10);
+    await connection.query(
+      'INSERT INTO sesi (id, nama_sesi, tanggal, status, buka, access_code) VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP, ?)',
+      [sessionId, 'SESI 1', today, 'CAI-SCAN']
+    );
+    console.log('Active session "SESI 1" with access code "CAI-SCAN" seeded.');
 
-    const [kelompokCount] = await connection.query('SELECT COUNT(*) as count FROM kelompok');
-    if (kelompokCount[0].count === 0) {
-      console.log('Seeding table: kelompok...');
-      await connection.query(`
-        INSERT INTO kelompok (nama_kelompok) VALUES 
-        ('Kelompok Al-Farabi'), 
-        ('Kelompok Ibnu Sina'), 
-        ('Kelompok Al-Khawarizmi'), 
-        ('Kelompok Ar-Razi')
-      `);
-    }
-
-    // 10. Seeding Peserta (if empty)
-    const [pesertaCount] = await connection.query('SELECT COUNT(*) as count FROM peserta');
-    if (pesertaCount[0].count === 0) {
-      console.log('Seeding table: peserta...');
-      // We will insert 8 mock participants. We retrieve IDs of Lookup Tables first
-      const [desas] = await connection.query('SELECT id FROM desa LIMIT 5');
-      const [kategoris] = await connection.query('SELECT id FROM kategori LIMIT 4');
-      const [kelompoks] = await connection.query('SELECT id FROM kelompok LIMIT 4');
-
-      const pDesa = (idx) => desas[idx % desas.length].id;
-      const pKat = (idx) => kategoris[idx % kategoris.length].id;
-      const pKel = (idx) => kelompoks[idx % kelompoks.length].id;
-
-      const mockPeserta = [
-        ['PES-001', 'Ahmad Fauzi', pKat(0), pDesa(0), pKel(0), 1, '081234567890'],
-        ['PES-002', 'Budi Santoso', pKat(0), pDesa(1), pKel(1), 1, '081234567891'],
-        ['PES-003', 'Citra Lestari', pKat(0), pDesa(2), pKel(2), 2, '081234567892'],
-        ['PES-004', 'Dedi Wijaya', pKat(1), pDesa(3), pKel(3), 1, '081234567893'],
-        ['PES-005', 'Eka Rahmawati', pKat(0), pDesa(4), pKel(0), 2, '081234567894'],
-        ['PES-006', 'Fahmi Idris', pKat(2), pDesa(0), pKel(1), 1, '081234567895'],
-        ['PES-007', 'Gita Permata', pKat(0), pDesa(1), pKel(2), 2, '081234567896'],
-        ['PES-008', 'Hendra Wijaya', pKat(3), pDesa(2), pKel(3), 1, '081234567897'],
-      ];
-
-      for (const p of mockPeserta) {
-        await connection.query(
-          'INSERT INTO peserta (id, nama, kategori, desa, kelompok, kelamin, telp) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          p
-        );
-      }
-      console.log('Seeded 8 mock participants.');
-    }
 
     console.log('Database setup completed successfully.');
   } catch (error) {
@@ -213,3 +242,4 @@ async function run() {
 }
 
 run();
+

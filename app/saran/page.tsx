@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, MessageSquare, Send, Loader2, Sparkles, Heart } from 'lucide-react';
+import { MessageSquare, Send, Loader2, Sparkles, Heart } from 'lucide-react';
 
 export default function SaranPage() {
   const [pesan, setPesan] = useState('');
@@ -27,7 +26,8 @@ export default function SaranPage() {
         setIsSuccess(true);
         setPesan('');
         setKesan('');
-        // Trigger client-side confetti if available
+        
+        // Trigger client-side confetti
         try {
           const confetti = (await import('canvas-confetti')).default;
           confetti({
@@ -50,70 +50,65 @@ export default function SaranPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-pink-500 selection:text-slate-950">
-      {/* Background Ambient Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] overflow-hidden pointer-events-none opacity-30 z-0">
-        <div className="absolute -top-[30%] left-[20%] w-[300px] h-[300px] bg-pink-500/20 rounded-full blur-[100px]" />
-        <div className="absolute -top-[20%] right-[20%] w-[300px] h-[300px] bg-purple-500/20 rounded-full blur-[100px]" />
-      </div>
-
-      {/* Navbar */}
-      <header className="sticky top-0 z-40 w-full bg-slate-900/80 border-b border-slate-800/80 backdrop-blur-md px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-slate-100 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-          <span className="text-sm font-semibold">Kembali</span>
-        </Link>
-        <div className="flex items-center gap-1.5 font-bold text-pink-400">
+    <div 
+      className="flex flex-col min-h-screen bg-cover bg-center bg-no-repeat bg-fixed text-slate-800 font-sans"
+      style={{ backgroundImage: "url('/bg.jpeg')" }}
+    >
+      <div className="absolute inset-0 bg-[#0066cc]/5 backdrop-blur-2xs pointer-events-none" />
+      {/* Premium Blue Header */}
+      <header className="sticky top-0 z-45 w-full bg-[#0066cc] px-4 py-4 flex items-center justify-between shadow-md">
+        <div className="w-6" /> {/* spacer */}
+        <div className="flex items-center gap-2 font-bold text-white tracking-wider uppercase">
           <MessageSquare className="w-5 h-5" />
           <span>KRITIK & SARAN</span>
         </div>
-        <div className="w-16" /> {/* spacer */}
+        <div className="w-6" /> {/* spacer */}
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 flex flex-col justify-center items-center p-4 max-w-md mx-auto w-full relative z-10">
+      <main className="flex-1 flex flex-col justify-center items-center p-6 max-w-md mx-auto w-full relative z-10">
         
         {isSuccess ? (
-          <div className="w-full bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 text-center shadow-2xl backdrop-blur-sm animate-scale-up">
-            <div className="w-16 h-16 rounded-full bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400 mx-auto mb-4 animate-bounce">
-              <Heart className="w-8 h-8 fill-pink-400/20" />
+          <div className="w-full bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-lg animate-scale-up">
+            <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 mx-auto mb-5 animate-bounce">
+              <Heart className="w-8 h-8 fill-emerald-500/20" />
             </div>
-            <h3 className="text-xl font-bold text-slate-100">Pesan Terkirim!</h3>
-            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+            <h3 className="text-xl font-bold text-slate-900 leading-tight">Masukan Terkirim!</h3>
+            <p className="text-xs text-slate-500 mt-2 leading-relaxed font-medium">
               Terima kasih banyak atas kritik dan saran yang telah Anda berikan. Masukan Anda sangat berharga bagi peningkatan kualitas acara kami.
             </p>
-            <div className="mt-6 flex flex-col gap-2">
+            <div className="mt-8 flex flex-col gap-2">
               <button
                 onClick={() => setIsSuccess(false)}
-                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 rounded-xl transition-colors border border-slate-700/50"
+                className="w-full py-3.5 bg-slate-850 hover:bg-slate-750 text-xs font-bold text-white rounded-xl transition-colors shadow-xs active:scale-[0.99]"
               >
                 Kirim Saran Lagi
               </button>
-              <Link
-                href="/"
-                className="w-full py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-450 hover:to-purple-550 text-xs font-bold text-white rounded-xl transition-all shadow-md shadow-pink-500/10 flex items-center justify-center"
-              >
-                Kembali ke Beranda
-              </Link>
             </div>
           </div>
         ) : (
-          <div className="w-full bg-slate-900/40 border border-slate-800/50 rounded-3xl p-6 shadow-2xl backdrop-blur-md">
-            <div className="mb-6">
-              <h2 className="text-xl font-extrabold text-slate-100 flex items-center gap-1.5">
-                <Sparkles className="w-5 h-5 text-pink-400" />
+          <div className="w-full bg-white border border-slate-100 rounded-3xl p-6.5 shadow-lg flex flex-col items-center">
+            
+            {/* Embedded Logo on Form */}
+            <img src="/logo.png" alt="CAI Logo" className="h-16 mb-4 object-contain" />
+            <h2 className="text-sm font-black text-slate-900 tracking-widest uppercase mb-1">CAI 47 Ciltim 1</h2>
+            <div className="w-8 h-1 bg-[#0066cc] rounded-full mb-6" />
+
+            <div className="mb-6 text-center w-full">
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center justify-center gap-1.5 leading-snug">
+                <Sparkles className="w-4.5 h-4.5 text-[#0066cc]" />
                 Form Tanggapan
-              </h2>
-              <p className="text-slate-400 text-xs mt-1">
+              </h3>
+              <p className="text-slate-400 text-[11px] font-medium mt-1.5 leading-relaxed px-2">
                 Silakan isi kritik, saran, pesan, maupun kesan selama mengikuti rangkaian acara. Tanggapan Anda dijamin anonim.
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5 w-full">
               {/* Pesan (Kritik/Saran) */}
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
-                  Kritik & Saran <span className="text-pink-400">*</span>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Kritik & Saran <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   required
@@ -121,13 +116,13 @@ export default function SaranPage() {
                   value={pesan}
                   onChange={(e) => setPesan(e.target.value)}
                   placeholder="Tuliskan kritik dan saran Anda untuk kelancaran acara..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500/30 transition-all placeholder:text-slate-650 resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs text-slate-800 focus:outline-none focus:border-[#0066cc] focus:ring-1 focus:ring-[#0066cc]/30 transition-all placeholder:text-slate-400 resize-none font-medium"
                 />
               </div>
 
               {/* Kesan */}
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+                <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
                   Kesan Acara (Opsional)
                 </label>
                 <textarea
@@ -135,7 +130,7 @@ export default function SaranPage() {
                   value={kesan}
                   onChange={(e) => setKesan(e.target.value)}
                   placeholder="Apa kesan atau pengalaman yang paling berkesan bagi Anda?"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500/30 transition-all placeholder:text-slate-650 resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs text-slate-800 focus:outline-none focus:border-[#0066cc] focus:ring-1 focus:ring-[#0066cc]/30 transition-all placeholder:text-slate-400 resize-none font-medium"
                 />
               </div>
 
@@ -143,11 +138,11 @@ export default function SaranPage() {
               <button
                 type="submit"
                 disabled={isSubmitting || !pesan.trim()}
-                className="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-450 hover:to-purple-550 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-600 text-xs font-bold text-white rounded-xl transition-all shadow-lg shadow-pink-500/10 flex items-center justify-center gap-2"
+                className="w-full py-4 bg-[#0066cc] hover:bg-[#0052a3] disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.99]"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
                     Mengirim...
                   </>
                 ) : (
@@ -164,9 +159,10 @@ export default function SaranPage() {
       </main>
 
       {/* Footer Info */}
-      <footer className="py-6 text-center text-slate-600 text-xs">
+      <footer className="py-6 text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest">
         CAI Event Feedback System
       </footer>
     </div>
   );
 }
+

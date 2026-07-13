@@ -2,7 +2,48 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import crypto from 'crypto';
 
+export async function GET() {
+  try {
+    const activeSessions = await query(
+      'SELECT id, nama_sesi FROM sesi WHERE status = 1 LIMIT 1'
+    );
+    if (!activeSessions || activeSessions.length === 0) {
+      return NextResponse.json({
+        success: true,
+        sessionName: null,
+        kehadiran: []
+      });
+    }
+    const activeSession = activeSessions[0];
+
+    const kehadiran = await query(
+      `SELECT k.waktu_scan, p.nama, kat.nama_kategori, kl.nama_kelompok, d.nama_desa
+       FROM kehadiran k
+       JOIN peserta p ON k.peserta = p.id
+       LEFT JOIN kategori kat ON p.kategori = kat.id
+       LEFT JOIN kelompok kl ON p.kelompok = kl.id
+       LEFT JOIN desa d ON p.desa = d.id
+       WHERE k.sesi = ?
+       ORDER BY k.waktu_scan DESC`,
+      [activeSession.id]
+    );
+
+    return NextResponse.json({
+      success: true,
+      sessionName: activeSession.nama_sesi,
+      kehadiran
+    });
+  } catch (error: any) {
+    console.error('Failed to fetch scanner attendance:', error);
+    return NextResponse.json(
+      { success: false, message: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: Request) {
+
   try {
     const body = await request.json();
     const pesertaId = (body.id || body.barcode || body.pesertaId || '').trim();
