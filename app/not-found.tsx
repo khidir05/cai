@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { MessageSquare, ArrowRight } from 'lucide-react';
 
-export default function Home() {
+export default function NotFound() {
   return (
     <main 
       className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat bg-fixed p-6 font-sans text-slate-800 relative"
@@ -28,7 +28,7 @@ export default function Home() {
         <div className="w-12 h-1 bg-[#0066cc] rounded-full mb-6" />
 
         <p className="text-slate-500 text-xs font-semibold leading-relaxed mb-8 px-4">
-          Mari berpartisipasi menyukseskan kegiatan dengan menyalurkan kritik, saran, serta masukan konstruktif Anda.
+          Halaman yang Anda tuju tidak ditemukan. Mari berpartisipasi menyukseskan kegiatan dengan menyalurkan kritik, saran, serta masukan konstruktif Anda.
         </p>
 
         {/* Link Button */}
