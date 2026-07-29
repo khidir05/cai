@@ -40,6 +40,7 @@ export default function AdminPage() {
   const [newPesertaKelamin, setNewPesertaKelamin] = useState('1');
   const [newPesertaTelp, setNewPesertaTelp] = useState('');
   const [newPesertaUkuran, setNewPesertaUkuran] = useState('L');
+  const [newPesertaIsPanitia, setNewPesertaIsPanitia] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
@@ -55,6 +56,14 @@ export default function AdminPage() {
   // Printed QR Code Popup Modal State
   const [selectedPesertaQr, setSelectedPesertaQr] = useState<any>(null);
 
+  // Bulk Printing State
+  const [showBulkPrintModal, setShowBulkPrintModal] = useState(false);
+  const [bulkPrintCardSize, setBulkPrintCardSize] = useState<'A6' | 'IDCard'>('A6');
+  const [bulkPrintPaperSize, setBulkPrintPaperSize] = useState<'A4' | 'A3' | 'Single'>('A4');
+  const [printMode, setPrintMode] = useState<'single' | 'bulk' | null>(null);
+  const [selectedBulkIds, setSelectedBulkIds] = useState<string[]>([]);
+  const [bulkPrintSearchQuery, setBulkPrintSearchQuery] = useState('');
+
   // Riwayat Sesi Tab State
   const [selectedHistorySession, setSelectedHistorySession] = useState<any>(null);
   const [historyAttendanceList, setHistoryAttendanceList] = useState<any[]>([]);
@@ -69,6 +78,16 @@ export default function AdminPage() {
     if (logged === 'true') {
       setIsLoggedIn(true);
     }
+  }, []);
+
+  // Print Dialog Event Listener to reset states automatically
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setPrintMode(null);
+      setSelectedPesertaQr(null);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
   }, []);
 
   // 2. Fetch Data from API
@@ -243,7 +262,8 @@ export default function AdminPage() {
           kelompok: newPesertaKelompok,
           kelamin: parseInt(newPesertaKelamin, 10),
           telp: newPesertaTelp,
-          ukuran_baju: newPesertaUkuran
+          ukuran_baju: newPesertaUkuran,
+          is_panitia: newPesertaIsPanitia
         })
       });
       const resJson = await res.json();
@@ -252,6 +272,7 @@ export default function AdminPage() {
         setNewPesertaId('');
         setNewPesertaNama('');
         setNewPesertaTelp('');
+        setNewPesertaIsPanitia(false);
         fetchDashboardData(false);
       } else {
         setFormError(resJson.message);
@@ -422,6 +443,26 @@ export default function AdminPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Peserta');
     XLSX.writeFile(workbook, 'data_peserta_cai.xlsx');
+  };
+
+  const exportFilteredPesertaToExcel = () => {
+    if (!filteredPeserta || filteredPeserta.length === 0) return;
+    const mappedData = filteredPeserta.map((p: any) => ({
+      'ID Peserta': p.id,
+      'Nama': p.nama,
+      'Kategori': p.nama_kategori || '',
+      'Kelompok': p.nama_kelompok || '',
+      'Desa': p.nama_desa || '',
+      'Jenis Kelamin': p.kelamin === 1 ? 'Laki-laki' : 'Perempuan',
+      'No Telepon': p.telp || '',
+      'Ukuran Baju': p.ukuran_baju || '',
+      'Waktu Terakhir Absen': p.terakhir_absen ? new Date(p.terakhir_absen).toLocaleString('id-ID') : 'Belum Absen'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(mappedData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Peserta Terfilter');
+    XLSX.writeFile(workbook, 'data_peserta_terfilter.xlsx');
   };
 
   const exportToPdf = () => {
@@ -636,11 +677,42 @@ export default function AdminPage() {
 
   // 13. Printable QR Card Action
   const triggerPrintQr = (peserta: any) => {
+    setPrintMode('single');
     setSelectedPesertaQr(peserta);
     // Let DOM update first then print
     setTimeout(() => {
       window.print();
     }, 300);
+  };
+
+  const renderCard = (p: any, cardSize: 'A6' | 'IDCard', key?: any) => {
+    const isA6 = cardSize === 'A6';
+    const qrSize = isA6 ? 90 : 55;
+    const paddingVal = isA6 ? 'p-1.5 rounded-lg' : 'p-1 rounded-md';
+    const bottomOffset = isA6 ? 'bottom-[6%]' : 'bottom-[5%]';
+    const nameClass = isA6 
+      ? 'text-xs font-black text-[#041a30] uppercase tracking-wide leading-tight drop-shadow-2xs' 
+      : 'text-[7px] font-black text-[#041a30] uppercase tracking-wide leading-none drop-shadow-2xs';
+
+    return (
+      <div className="print-card-wrapper bg-white" key={key}>
+        <img 
+          src={p.is_panitia === 1 ? '/panitia.jpeg' : '/peserta.jpeg'} 
+          alt="Background Template" 
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className={`absolute ${bottomOffset} left-0 right-0 flex flex-col items-center justify-center space-y-1 z-10`}>
+          <div className={`bg-white ${paddingVal} shadow-md border border-slate-100 flex items-center justify-center`}>
+            <QRCodeSVG value={p.id} size={qrSize} />
+          </div>
+          <div className="text-center px-2 w-full mt-0.5">
+            <h3 className={nameClass} style={{ wordBreak: 'break-word' }}>
+              {p.nama}
+            </h3>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // 14. Filter and Search logic for participant lists
@@ -724,26 +796,410 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-[#edf0f5] flex font-sans text-slate-800 relative">
 
+      {/* Preload background templates to ensure they load instantly in print dialog */}
+      <div className="hidden pointer-events-none aria-hidden" aria-hidden="true">
+        <img src="/peserta.jpeg" alt="preload" />
+        <img src="/panitia.jpeg" alt="preload" />
+      </div>
+
       {/* -------------------- PRINT-ONLY CONTAINER -------------------- */}
       {selectedPesertaQr && (
-        <div id="print-section" className="hidden print:block fixed inset-0 bg-white z-50 p-8 text-black text-center font-sans">
-          <div className="max-w-xs mx-auto border-4 border-double border-slate-900 rounded-3xl p-6 flex flex-col items-center justify-center">
-            <img src="/logo.png" alt="CAI Logo" className="h-10 mb-4 object-contain" />
-            <h2 className="text-lg font-black tracking-wide text-slate-900 leading-tight uppercase">CAI 47 Ciltim 1</h2>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">KARTU PESERTA</p>
+        <>
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: 100% !important;
+                overflow: hidden !important;
+                background: white !important;
+              }
+              /* Reset root wrappers to prevent flex display issues */
+              .min-h-screen, body > div {
+                display: block !important;
+                min-height: 0 !important;
+                height: auto !important;
+                position: static !important;
+                background: white !important;
+              }
+              body * {
+                visibility: hidden !important;
+              }
+              #print-section, #print-section * {
+                visibility: visible !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              #print-section {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                z-index: 9999999 !important;
+              }
+              @page {
+                size: portrait;
+                margin: 0 !important;
+              }
+            }
+          `}} />
+          <div id="print-section" className="hidden print:block fixed inset-0 bg-white z-50 text-black text-center font-sans">
+            <div className="relative w-[95mm] h-[142mm] bg-white shadow-lg rounded-2xl overflow-hidden">
+              {/* Using absolute img tag instead of CSS background-image to force browser rendering in print mode */}
+              <img 
+                src={selectedPesertaQr.is_panitia === 1 ? '/panitia.jpeg' : '/peserta.jpeg'} 
+                alt="Background Template" 
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              {/* QR and Name placed in the bottom 1/4 area, below "2026" */}
+              <div className="absolute bottom-[6%] left-0 right-0 flex flex-col items-center justify-center space-y-1.5 z-10">
+                <div className="bg-white p-1.5 rounded-lg shadow-md border border-slate-100 flex items-center justify-center">
+                  <QRCodeSVG value={selectedPesertaQr.id} size={90} />
+                </div>
+                <div className="text-center px-5 max-w-[85mm] mt-0.5">
+                  <h3 className="text-xs font-black text-[#041a30] uppercase tracking-wide leading-tight drop-shadow-2xs">
+                    {selectedPesertaQr.nama}
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
-            <div className="my-6 border border-slate-350 p-2.5 bg-white rounded-xl shadow-inner">
-              <QRCodeSVG value={selectedPesertaQr.id} size={150} />
+      {/* -------------------- PRINT-BULK CONTAINER -------------------- */}
+      {(showBulkPrintModal || printMode === 'bulk') && (
+        <>
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
+                min-height: 0 !important;
+                background: white !important;
+              }
+              /* Reset root wrappers to prevent flex display issues */
+              .min-h-screen, body > div {
+                display: block !important;
+                min-height: 0 !important;
+                height: auto !important;
+                position: static !important;
+                background: white !important;
+              }
+              body * {
+                visibility: hidden !important;
+              }
+              #print-bulk-section, #print-bulk-section * {
+                visibility: visible !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              #print-bulk-section {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                z-index: 9999999 !important;
+                display: block !important;
+              }
+              .print-page {
+                width: ${bulkPrintPaperSize === 'A3' ? '297mm' : (bulkPrintPaperSize === 'A4' ? '210mm' : '100%')} !important;
+                height: ${bulkPrintPaperSize === 'A3' ? '420mm' : (bulkPrintPaperSize === 'A4' ? '290mm' : 'auto')} !important;
+                padding: ${
+                  bulkPrintPaperSize === 'A3'
+                    ? (bulkPrintCardSize === 'A6' ? '20mm 6mm 116mm 6mm' : '4mm 13.5mm 11mm 13.5mm')
+                    : (bulkPrintPaperSize === 'A4' ? '12mm 10mm' : '0')
+                } !important;
+                box-sizing: border-box !important;
+                display: ${bulkPrintPaperSize === 'Single' ? 'flex' : 'grid'} !important;
+                grid-template-columns: ${
+                  bulkPrintPaperSize === 'A3'
+                    ? (bulkPrintCardSize === 'A6' ? 'repeat(3, 1fr)' : 'repeat(5, 1fr)')
+                    : (bulkPrintPaperSize === 'A4'
+                        ? (bulkPrintCardSize === 'A6' ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)')
+                        : 'none')
+                } !important;
+                grid-auto-rows: min-content !important;
+                justify-items: center !important;
+                align-content: center !important;
+                justify-content: center !important;
+                align-items: center !important;
+                gap: ${
+                  bulkPrintPaperSize === 'A3'
+                    ? '0'
+                    : (bulkPrintPaperSize === 'A4'
+                        ? (bulkPrintCardSize === 'A6' ? '8mm 12mm' : '12mm 8mm')
+                        : '0')
+                } !important;
+                margin: 0 auto !important;
+                background: white !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                overflow: hidden !important;
+              }
+              .print-page:not(:last-child) {
+                page-break-after: always !important;
+                break-after: page !important;
+              }
+              .print-card-wrapper {
+                width: ${bulkPrintCardSize === 'A6' ? '95mm' : '54mm'} !important;
+                height: ${bulkPrintCardSize === 'A6' ? '142mm' : '81mm'} !important;
+                position: relative !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+                border: 1px dashed #ccc !important;
+              }
+              @page {
+                size: ${bulkPrintPaperSize === 'A3' ? 'A3 portrait' : (bulkPrintPaperSize === 'A4' ? 'A4 portrait' : 'portrait')} !important;
+                margin: 0 !important;
+              }
+            }
+          `}} />
+          <div id="print-bulk-section" className="hidden print:block">
+            {(() => {
+              const participants = filteredPeserta.filter((p: any) => selectedBulkIds.includes(p.id));
+              if (bulkPrintPaperSize === 'A3' || bulkPrintPaperSize === 'A4') {
+                const cardsPerPage = bulkPrintPaperSize === 'A3'
+                  ? (bulkPrintCardSize === 'A6' ? 6 : 25)
+                  : (bulkPrintCardSize === 'A6' ? 4 : 6);
+                const pages = [];
+                for (let i = 0; i < participants.length; i += cardsPerPage) {
+                  pages.push(participants.slice(i, i + cardsPerPage));
+                }
+                return pages.map((pageParticipants, pageIdx) => (
+                  <div key={pageIdx} className="print-page">
+                    {pageParticipants.map((p: any) => renderCard(p, bulkPrintCardSize, p.id))}
+                  </div>
+                ));
+              } else {
+                return participants.map((p: any) => (
+                  <div key={p.id} className="print-page" style={{ height: bulkPrintCardSize === 'A6' ? '142mm' : '81mm', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {renderCard(p, bulkPrintCardSize, p.id)}
+                  </div>
+                ));
+              }
+            })()}
+          </div>
+        </>
+      )}
+
+      {/* -------------------- BULK PRINT CONFIG MODAL -------------------- */}
+      {showBulkPrintModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 print:hidden">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 p-6 space-y-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Cetak Kartu QR Massal</h3>
+                <p className="text-slate-400 text-[10px] mt-1 font-bold uppercase tracking-wider">
+                  Mencetak {filteredPeserta.length} kartu peserta terfilter
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowBulkPrintModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <h3 className="text-base font-extrabold text-slate-900 uppercase tracking-wide leading-snug">{selectedPesertaQr.nama}</h3>
-            <p className="text-xs font-bold text-slate-500 tracking-wider mt-0.5">{selectedPesertaQr.id}</p>
+            <div className="space-y-4 text-xs font-semibold text-slate-700">
+              {/* Card Size Selection */}
+              <div>
+                <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-2">Ukuran Kartu</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setBulkPrintCardSize('A6')}
+                    className={`p-3 rounded-xl border text-center font-bold transition-all flex flex-col items-center justify-center gap-1 ${
+                      bulkPrintCardSize === 'A6'
+                        ? 'border-[#63c5eb] bg-[#63c5eb]/5 text-[#63c5eb] ring-2 ring-[#63c5eb]/20'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    <span className="text-xs">Ukuran Kustom (A6)</span>
+                    <span className="text-[9px] font-medium opacity-80">95mm x 142mm</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkPrintCardSize('IDCard')}
+                    className={`p-3 rounded-xl border text-center font-bold transition-all flex flex-col items-center justify-center gap-1 ${
+                      bulkPrintCardSize === 'IDCard'
+                        ? 'border-[#63c5eb] bg-[#63c5eb]/5 text-[#63c5eb] ring-2 ring-[#63c5eb]/20'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    <span className="text-xs">Ukuran ID Card (B8)</span>
+                    <span className="text-[9px] font-medium opacity-80">54mm x 81mm</span>
+                  </button>
+                </div>
+              </div>
 
-            <div className="w-full border-t border-slate-200 mt-4 pt-3 flex flex-wrap justify-between text-[9px] font-semibold text-slate-650 uppercase">
-              <span>Kat: {selectedPesertaQr.nama_kategori || '-'}</span>
-              <span>Klp: {selectedPesertaQr.nama_kelompok || '-'}</span>
-              <span>Desa: {selectedPesertaQr.nama_desa || '-'}</span>
-              <span>Baju: {selectedPesertaQr.ukuran_baju || '-'}</span>
+              {/* Paper Selection */}
+              <div>
+                <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-2">Ukuran Kertas / Tata Letak</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBulkPrintPaperSize('A4')}
+                    className={`p-2.5 rounded-xl border text-center font-bold transition-all flex flex-col items-center justify-center gap-1 ${
+                      bulkPrintPaperSize === 'A4'
+                        ? 'border-[#63c5eb] bg-[#63c5eb]/5 text-[#63c5eb] ring-2 ring-[#63c5eb]/20'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    <span className="text-xs">Kertas A4</span>
+                    <span className="text-[8px] font-medium opacity-80">Grid 2x2 / 3x2</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkPrintPaperSize('A3')}
+                    className={`p-2.5 rounded-xl border text-center font-bold transition-all flex flex-col items-center justify-center gap-1 ${
+                      bulkPrintPaperSize === 'A3'
+                        ? 'border-[#63c5eb] bg-[#63c5eb]/5 text-[#63c5eb] ring-2 ring-[#63c5eb]/20'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    <span className="text-xs">Kertas A3</span>
+                    <span className="text-[8px] font-medium opacity-80">Grid 3x2 / 5x5</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkPrintPaperSize('Single')}
+                    className={`p-2.5 rounded-xl border text-center font-bold transition-all flex flex-col items-center justify-center gap-1 ${
+                      bulkPrintPaperSize === 'Single'
+                        ? 'border-[#63c5eb] bg-[#63c5eb]/5 text-[#63c5eb] ring-2 ring-[#63c5eb]/20'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    <span className="text-xs">1 Per Hal</span>
+                    <span className="text-[8px] font-medium opacity-80">Single Page</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-[10px] text-amber-800 leading-relaxed font-bold">
+                💡 <span className="uppercase">Tip Cetak:</span> Di jendela print browser Anda, silakan pilih ukuran kertas yang sesuai (**A3** / A4 / F4 / A6) dan atur opsi margin ke **"None"** untuk hasil pemotongan yang presisi. Anda juga dapat memilih printer **"Save to PDF"** untuk menyimpannya sebagai berkas PDF.
+              </div>
+
+              {/* Participant Selection List */}
+              <div className="border-t border-slate-100 pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider">
+                    Pilih Peserta ({selectedBulkIds.length} / {filteredPeserta.length})
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const visibleItemIds = filteredPeserta
+                        .filter((p: any) => p.nama.toLowerCase().includes(bulkPrintSearchQuery.toLowerCase()))
+                        .map((p: any) => p.id);
+
+                      const allVisibleChecked = visibleItemIds.every((id: string) => selectedBulkIds.includes(id));
+                      if (allVisibleChecked) {
+                        setSelectedBulkIds(selectedBulkIds.filter((id) => !visibleItemIds.includes(id)));
+                      } else {
+                        setSelectedBulkIds(Array.from(new Set([...selectedBulkIds, ...visibleItemIds])));
+                      }
+                    }}
+                    className="text-[10px] text-[#63c5eb] hover:text-[#4baecd] font-bold transition-colors"
+                  >
+                    Pilih/Hapus Semua Terlihat
+                  </button>
+                </div>
+
+                {/* Search Bar inside selection panel */}
+                <div className="relative mb-2">
+                  <input
+                    type="text"
+                    value={bulkPrintSearchQuery}
+                    onChange={(e) => setBulkPrintSearchQuery(e.target.value)}
+                    placeholder="Cari nama peserta di sini..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 pl-8.5 text-xs focus:outline-none focus:border-[#63c5eb] focus:bg-white"
+                  />
+                  <Search className="w-3.5 h-3.5 text-slate-450 absolute left-3 top-2.5" />
+                  {bulkPrintSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setBulkPrintSearchQuery('')}
+                      className="absolute right-3 top-2 text-slate-450 hover:text-slate-600 text-xs font-bold font-sans"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-48 overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-100 p-1 bg-slate-50/50">
+                  {filteredPeserta
+                    .filter((p: any) => p.nama.toLowerCase().includes(bulkPrintSearchQuery.toLowerCase()))
+                    .map((p: any) => {
+                      const isChecked = selectedBulkIds.includes(p.id);
+                      return (
+                        <label
+                          key={p.id}
+                          className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors text-xs font-semibold text-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setSelectedBulkIds(selectedBulkIds.filter((id) => id !== p.id));
+                              } else {
+                                setSelectedBulkIds([...selectedBulkIds, p.id]);
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-slate-300 text-[#63c5eb] focus:ring-[#63c5eb]/20"
+                          />
+                          <div className="flex-1 min-w-0 text-left">
+                            <p className="truncate">{p.nama}</p>
+                            <p className="text-[9px] text-slate-400 font-medium">
+                              {p.nama_kelompok || 'Tanpa Kelompok'} • {p.is_panitia === 1 ? 'Panitia' : 'Peserta'}
+                            </p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 border-t border-slate-100 pt-4.5">
+              <button
+                type="button"
+                onClick={() => setShowBulkPrintModal(false)}
+                className="w-1/2 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedBulkIds.length === 0) {
+                    alert('Silakan pilih minimal 1 peserta untuk dicetak.');
+                    return;
+                  }
+                  setShowBulkPrintModal(false);
+                  setPrintMode('bulk');
+                  setTimeout(() => {
+                    window.print();
+                  }, 300);
+                }}
+                className="w-1/2 py-3 bg-[#63c5eb] hover:bg-[#4baecd] text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Buka Printer / PDF</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1490,12 +1946,6 @@ export default function AdminPage() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
                   <div>
                     <h2 className="text-lg font-extrabold text-slate-900">List Peserta</h2>
-                    <div className="flex items-center gap-1 text-slate-400 text-xxs font-semibold mt-0.5 uppercase tracking-wide">
-                      <span>Sort by</span>
-                      <span className="text-[#1ea5e1] flex items-center gap-0.5 cursor-pointer hover:underline">
-                        Recently <ChevronDown className="w-3 h-3" />
-                      </span>
-                    </div>
                   </div>
 
                   <div className="flex items-center gap-2.5">
@@ -1509,11 +1959,25 @@ export default function AdminPage() {
                     </button>
 
                     <button
-                      onClick={exportToPdf}
+                      onClick={exportFilteredPesertaToExcel}
+                      className="flex items-center gap-1.5 px-4.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-md"
+                      title="Ekspor daftar terfilter ke Excel"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span>Export Excel</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setBulkPrintSearchQuery('');
+                        setSelectedBulkIds(filteredPeserta.map((p: any) => p.id));
+                        setShowBulkPrintModal(true);
+                      }}
                       className="flex items-center gap-1.5 px-4.5 py-2.5 bg-[#1ea5e1] hover:bg-[#2974c5] text-white text-xs font-bold rounded-xl transition-all shadow-md"
+                      title="Cetak kartu QR massal untuk daftar peserta terfilter"
                     >
                       <Printer className="w-4 h-4" />
-                      <span>Print</span>
+                      <span>Print Kartu</span>
                     </button>
 
                     <button
@@ -1586,7 +2050,35 @@ export default function AdminPage() {
                         <select
                           required
                           value={newPesertaKelompok}
-                          onChange={(e) => setNewPesertaKelompok(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNewPesertaKelompok(val);
+                            if (val && data.lookups) {
+                              const selectedKel = data.lookups.kelompoks.find((k: any) => k.id.toString() === val.toString());
+                              if (selectedKel) {
+                                const kelName = selectedKel.nama_kelompok.toLowerCase().trim();
+                                let targetDesa = '';
+                                if (['mentasan 1', 'mentasan 2', 'mentasan 3', 'kawunganten'].includes(kelName)) {
+                                  targetDesa = 'Mentasan';
+                                } else if (['jeruklegi', 'tritih 3', 'bandara', 'aneka', 'karangkemiri'].includes(kelName)) {
+                                  targetDesa = 'Jeruklegi';
+                                } else if (['limbangan', 'rawabendungan', 'kuripan', 'menganti', 'semampir'].includes(kelName)) {
+                                  targetDesa = 'Limbangan';
+                                } else if (['tritih 1', 'tritih 2', 'tritih 4', 'tritih 5', 'bayur'].includes(kelName)) {
+                                  targetDesa = 'Cilacap Utara';
+                                } else if (['cilacap 1', 'cilacap 2', 'cilacap 3', 'cilacap 4', 'cilacap 5', 'cilacap 6'].includes(kelName)) {
+                                  targetDesa = 'Cilacap Selatan';
+                                }
+
+                                if (targetDesa) {
+                                  const matchedDesaObj = data.lookups.desas.find((d: any) => d.nama_desa.toLowerCase().trim() === targetDesa.toLowerCase().trim());
+                                  if (matchedDesaObj) {
+                                    setNewPesertaDesa(matchedDesaObj.id.toString());
+                                  }
+                                }
+                              }
+                            }
+                          }}
                           className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
                         >
                           <option value="">-- Pilih Kelompok --</option>
@@ -1644,6 +2136,18 @@ export default function AdminPage() {
                           {['S', 'M', 'L', 'XL', 'XXL', 'XXXL'].map((sz) => (
                             <option key={sz} value={sz}>{sz}</option>
                           ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-550 mb-1 uppercase tracking-wider">Tipe Kepesertaan</label>
+                        <select
+                          value={newPesertaIsPanitia ? '1' : '0'}
+                          onChange={(e) => setNewPesertaIsPanitia(e.target.value === '1')}
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
+                        >
+                          <option value="0">Peserta</option>
+                          <option value="1">Panitia</option>
                         </select>
                       </div>
 
@@ -1749,8 +2253,19 @@ export default function AdminPage() {
                           <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
                             <td className="px-5 py-4">
                               <div>
-                                <span className="font-extrabold text-slate-900 block leading-tight">{p.nama}</span>
-                                <span className="text-[10px] text-slate-450 font-bold block mt-0.5 uppercase tracking-wider">{p.id}</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-extrabold text-slate-900 leading-tight">{p.nama}</span>
+                                  {p.is_panitia === 1 ? (
+                                    <span className="px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-[9px] font-black text-indigo-600 uppercase tracking-wide">
+                                      Panitia
+                                    </span>
+                                  ) : (
+                                    <span className="px-1.5 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[9px] font-black text-slate-600 uppercase tracking-wide">
+                                      Peserta
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-slate-450 font-bold block mt-1 uppercase tracking-wider">{p.id}</span>
                               </div>
                             </td>
                             <td className="px-5 py-4 font-semibold text-slate-655">{p.nama_kategori || '-'}</td>
@@ -1793,7 +2308,18 @@ export default function AdminPage() {
                     filteredPeserta.map((p: any) => (
                       <div key={p.id} className="bg-white p-4 rounded-2xl border border-slate-150 shadow-xs space-y-3">
                         <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                          <span className="font-extrabold text-slate-900 text-sm">{p.nama}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-extrabold text-slate-900 text-sm">{p.nama}</span>
+                            {p.is_panitia === 1 ? (
+                              <span className="px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-[8px] font-black text-indigo-600 uppercase tracking-wide">
+                                Panitia
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[8px] font-black text-slate-600 uppercase tracking-wide">
+                                Peserta
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">{p.id}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 font-semibold">

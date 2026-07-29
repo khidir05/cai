@@ -79,9 +79,8 @@ export async function GET(request: Request) {
        GROUP BY kat.nama_kategori`
     );
 
-    // 7. All participants list
     const pesertaList = await query(
-      `SELECT p.id, p.nama, p.kelamin, p.telp, p.ukuran_baju,
+      `SELECT p.id, p.nama, p.kelamin, p.telp, p.ukuran_baju, p.is_panitia,
               d.nama_desa, kat.nama_kategori, kl.nama_kelompok,
               (SELECT waktu_scan FROM kehadiran k WHERE k.peserta = p.id ORDER BY waktu_scan DESC LIMIT 1) as terakhir_absen
        FROM peserta p
@@ -155,9 +154,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { action } = body;
 
-    // 1. Add participant
     if (action === 'add_peserta') {
-      const { id, nama, kategori, desa, kelompok, kelamin, telp, ukuran_baju } = body;
+      const { id, nama, kategori, desa, kelompok, kelamin, telp, ukuran_baju, is_panitia } = body;
 
       if (!id || !nama || !kategori || !desa || !kelompok || !kelamin || !ukuran_baju) {
         return NextResponse.json({ success: false, message: 'Semua kolom bertanda * wajib diisi.' }, { status: 400 });
@@ -170,9 +168,9 @@ export async function POST(request: Request) {
       }
 
       await query(
-        `INSERT INTO peserta (id, nama, kategori, desa, kelompok, kelamin, telp, ukuran_baju) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id.trim(), nama.trim(), kategori, desa, kelompok, kelamin, (telp || '').trim(), ukuran_baju.trim()]
+        `INSERT INTO peserta (id, nama, kategori, desa, kelompok, kelamin, telp, ukuran_baju, is_panitia) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id.trim(), nama.trim(), kategori, desa, kelompok, kelamin, (telp || '').trim(), ukuran_baju.trim(), is_panitia ? 1 : 0]
       );
 
       return NextResponse.json({ success: true, message: 'Peserta berhasil ditambahkan!' });
@@ -297,22 +295,41 @@ export async function POST(request: Request) {
           const rawDesa = (row.desa || '').toString().trim();
           const rawKelompok = (row.kelompok || '').toString().trim();
           const rawKelamin = (row.kelamin || row.jenis_kelamin || '').toString().trim();
-          const rawTelp = (row.telp || row.no_telp || row.telepon || '').toString().trim();
+           const rawTelp = (row.telp || row.no_telp || row.telepon || '').toString().trim();
           const rawUkuran = (row.ukuran_baju || row.ukuran || '').toString().trim();
+          const rawPanitia = (row.is_panitia || row.panitia || '').toString().trim().toLowerCase();
+          const isPanitiaValue = (rawPanitia === '1' || rawPanitia === 'true' || rawPanitia === 'panitia' || rawPanitia === 'yes' || row.is_panitia === 1 || row.is_panitia === true) ? 1 : 0;
 
           if (!rawId || !rawNama) {
             errorCount++;
             continue;
           }
 
+          // Determine Desa based on Kelompok name first (according to user mapping rules)
+          let finalDesaName = rawDesa || 'Mentasan';
+          if (rawKelompok) {
+            const k = rawKelompok.toLowerCase().trim();
+            if (['mentasan 1', 'mentasan 2', 'mentasan 3', 'kawunganten'].includes(k)) {
+              finalDesaName = 'Mentasan';
+            } else if (['jeruklegi', 'tritih 3', 'bandara', 'aneka', 'karangkemiri'].includes(k)) {
+              finalDesaName = 'Jeruklegi';
+            } else if (['limbangan', 'rawabendungan', 'kuripan', 'menganti', 'semampir'].includes(k)) {
+              finalDesaName = 'Limbangan';
+            } else if (['tritih 1', 'tritih 2', 'tritih 4', 'tritih 5', 'bayur'].includes(k)) {
+              finalDesaName = 'Cilacap Utara';
+            } else if (['cilacap 1', 'cilacap 2', 'cilacap 3', 'cilacap 4', 'cilacap 5', 'cilacap 6'].includes(k)) {
+              finalDesaName = 'Cilacap Selatan';
+            }
+          }
+
           // Handle Desa Lookup
           let desaId = null;
-          if (rawDesa) {
-            const lowerDesa = rawDesa.toLowerCase();
+          if (finalDesaName) {
+            const lowerDesa = finalDesaName.toLowerCase().trim();
             if (desaMap.has(lowerDesa)) {
               desaId = desaMap.get(lowerDesa);
             } else {
-              const insertRes = await query('INSERT INTO desa (nama_desa) VALUES (?)', [rawDesa]);
+              const insertRes = await query('INSERT INTO desa (nama_desa) VALUES (?)', [finalDesaName]);
               desaId = insertRes.insertId;
               desaMap.set(lowerDesa, desaId);
             }
@@ -368,8 +385,8 @@ export async function POST(request: Request) {
 
           // Insert or Update participant
           await query(
-            `INSERT INTO peserta (id, nama, kategori, desa, kelompok, kelamin, telp, ukuran_baju) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
+            `INSERT INTO peserta (id, nama, kategori, desa, kelompok, kelamin, telp, ukuran_baju, is_panitia) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) 
              ON DUPLICATE KEY UPDATE 
                nama = VALUES(nama), 
                kategori = VALUES(kategori), 
@@ -377,8 +394,9 @@ export async function POST(request: Request) {
                kelompok = VALUES(kelompok), 
                kelamin = VALUES(kelamin), 
                telp = VALUES(telp), 
-               ukuran_baju = VALUES(ukuran_baju)`,
-            [rawId, rawNama, kategoriId, desaId, kelompokId, kelaminId, telpValue, ukuranValue]
+               ukuran_baju = VALUES(ukuran_baju),
+               is_panitia = VALUES(is_panitia)`,
+            [rawId, rawNama, kategoriId, desaId, kelompokId, kelaminId, telpValue, ukuranValue, isPanitiaValue]
           );
 
           successCount++;

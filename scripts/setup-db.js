@@ -1,5 +1,7 @@
 const mysql = require('mysql2/promise');
 const fs = require('fs');
+const XLSX = require('xlsx');
+
 const loadEnv = (filePath) => {
   if (fs.existsSync(filePath)) {
     const envFile = fs.readFileSync(filePath, 'utf-8');
@@ -30,7 +32,6 @@ async function run() {
     connection = await mysql.createConnection(dbConfig);
     console.log('Connected to MySQL server.');
 
-    // 1. Create database
     const dbName = process.env.DB_DATABASE || 'cai';
     await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
     console.log(`Database "${dbName}" checked/created.`);
@@ -50,7 +51,7 @@ async function run() {
     await connection.query('DROP TABLE IF EXISTS scanner_sessions');
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
 
-    // 2. Create Table desa
+    // 1. Create Table desa
     console.log('Creating table: desa...');
     await connection.query(`
       CREATE TABLE IF NOT EXISTS desa (
@@ -59,7 +60,7 @@ async function run() {
       ) ENGINE=InnoDB;
     `);
 
-    // 3. Create Table kategori
+    // 2. Create Table kategori
     console.log('Creating table: kategori...');
     await connection.query(`
       CREATE TABLE IF NOT EXISTS kategori (
@@ -68,7 +69,7 @@ async function run() {
       ) ENGINE=InnoDB;
     `);
 
-    // 4. Create Table kelompok
+    // 3. Create Table kelompok
     console.log('Creating table: kelompok...');
     await connection.query(`
       CREATE TABLE IF NOT EXISTS kelompok (
@@ -77,7 +78,7 @@ async function run() {
       ) ENGINE=InnoDB;
     `);
 
-    // 5. Create Table peserta
+    // 4. Create Table peserta
     console.log('Creating table: peserta...');
     await connection.query(`
       CREATE TABLE IF NOT EXISTS peserta (
@@ -86,16 +87,17 @@ async function run() {
         kategori INT,
         desa INT,
         kelompok INT,
-        kelamin TINYINT COMMENT '1 laki2, 2 perempuan',
+        kelamin TINYINT DEFAULT 1 COMMENT '1 laki2, 2 perempuan',
         telp VARCHAR(20),
-        ukuran_baju VARCHAR(50),
+        ukuran_baju VARCHAR(50) DEFAULT 'L',
+        is_panitia TINYINT(1) DEFAULT 0 COMMENT '0 peserta, 1 panitia',
         FOREIGN KEY (kategori) REFERENCES kategori(id) ON DELETE SET NULL,
         FOREIGN KEY (desa) REFERENCES desa(id) ON DELETE SET NULL,
         FOREIGN KEY (kelompok) REFERENCES kelompok(id) ON DELETE SET NULL
       ) ENGINE=InnoDB;
     `);
 
-    // 6. Create Table sesi
+    // 5. Create Table sesi
     console.log('Creating table: sesi...');
     await connection.query(`
       CREATE TABLE IF NOT EXISTS sesi (
@@ -110,7 +112,7 @@ async function run() {
       ) ENGINE=InnoDB;
     `);
 
-    // 7. Create Table kehadiran
+    // 6. Create Table kehadiran
     console.log('Creating table: kehadiran...');
     await connection.query(`
       CREATE TABLE IF NOT EXISTS kehadiran (
@@ -123,7 +125,7 @@ async function run() {
       ) ENGINE=InnoDB;
     `);
 
-    // 8. Create Table saran
+    // 7. Create Table saran
     console.log('Creating table: saran...');
     await connection.query(`
       CREATE TABLE IF NOT EXISTS saran (
@@ -133,7 +135,7 @@ async function run() {
       ) ENGINE=InnoDB;
     `);
 
-    // 9. Create Table settings
+    // 8. Create Table settings
     console.log('Creating table: settings...');
     await connection.query(`
       CREATE TABLE IF NOT EXISTS settings (
@@ -142,7 +144,7 @@ async function run() {
       ) ENGINE=InnoDB;
     `);
 
-    // 10. Create Table scanner_sessions
+    // 9. Create Table scanner_sessions
     console.log('Creating table: scanner_sessions...');
     await connection.query(`
       CREATE TABLE IF NOT EXISTS scanner_sessions (
@@ -151,37 +153,18 @@ async function run() {
       ) ENGINE=InnoDB;
     `);
 
-    console.log('All tables checked/created successfully.');
+    console.log('All tables created successfully.');
 
-    // 11. Seeding Lookup Tables (if empty)
+    // 10. Seeding lookup tables (default values)
     console.log('Seeding table: desa...');
-    await connection.query(`
-      INSERT INTO desa (nama_desa) VALUES 
-      ('Cilacap Kota'), 
-      ('Cilacap Selatan'), 
-      ('Cilacap Tengah'), 
-      ('Cilacap Utara')
-    `);
-
-    console.log('Seeding table: kategori...');
-    await connection.query(`
-      INSERT INTO kategori (nama_kategori) VALUES 
-      ('Kiriman'), 
-      ('KI'), 
-      ('4S'), 
-      ('MT'), 
-      ('Pondok')
-    `);
-
-    console.log('Seeding table: kelompok...');
-    await connection.query(`
-      INSERT INTO kelompok (nama_kelompok) VALUES 
-      ('Cilacap 1'), 
-      ('Cilacap 2'), 
-      ('Cilacap 3'), 
-      ('Cilacap 4'), 
-      ('Cilacap 5')
-    `);
+     await connection.query(`
+       INSERT INTO desa (nama_desa) VALUES 
+       ('Mentasan'), 
+       ('Jeruklegi'), 
+       ('Limbangan'), 
+       ('Cilacap Utara'), 
+       ('Cilacap Selatan')
+     `);
 
     console.log('Seeding table: settings...');
     await connection.query(`
@@ -189,37 +172,107 @@ async function run() {
       ('max_scanners', '5')
     `);
 
-    // 12. Seeding Peserta
-    console.log('Seeding table: peserta...');
-    const [desas] = await connection.query('SELECT id, nama_desa FROM desa');
-    const [kategoris] = await connection.query('SELECT id, nama_kategori FROM kategori');
-    const [kelompoks] = await connection.query('SELECT id, nama_kelompok FROM kelompok');
-
-    const getDesaId = (name) => desas.find(d => d.nama_desa === name)?.id;
-    const getKatId = (name) => kategoris.find(k => k.nama_kategori === name)?.id;
-    const getKelId = (name) => kelompoks.find(k => k.nama_kelompok === name)?.id;
-
-    // Seeding matches the names in the PDF screenshot (Page 2 & Page 3)
-    const mockPeserta = [
-      ['PES-001', 'Nabila Syakieb', getKatId('Kiriman'), getDesaId('Cilacap Kota'), getKelId('Cilacap 1'), 2, '081234567890', 'M'],
-      ['PES-002', 'Ibrahim', getKatId('KI'), getDesaId('Cilacap Kota'), getKelId('Cilacap 2'), 1, '081234567891', 'XXL'],
-      ['PES-003', 'Hasan Abdullah', getKatId('Kiriman'), getDesaId('Cilacap Kota'), getKelId('Cilacap 3'), 1, '081234567892', 'L'],
-      ['PES-004', 'Bintang Kejora', getKatId('KI'), getDesaId('Cilacap Kota'), getKelId('Cilacap 4'), 1, '081234567893', 'L'],
-      ['PES-005', 'Muti\'atun', getKatId('Kiriman'), getDesaId('Cilacap Kota'), getKelId('Cilacap 5'), 2, '081234567894', 'M'],
-      ['PES-006', 'Ahmad Fauzi', getKatId('4S'), getDesaId('Cilacap Selatan'), getKelId('Cilacap 1'), 1, '081234567895', 'XL'],
-      ['PES-007', 'Citra Lestari', getKatId('MT'), getDesaId('Cilacap Tengah'), getKelId('Cilacap 2'), 2, '081234567896', 'S'],
-      ['PES-008', 'Dedi Wijaya', getKatId('Pondok'), getDesaId('Cilacap Utara'), getKelId('Cilacap 3'), 1, '081234567897', 'XXL'],
-    ];
-
-    for (const p of mockPeserta) {
-      await connection.query(
-        'INSERT INTO peserta (id, nama, kategori, desa, kelompok, kelamin, telp, ukuran_baju) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        p
-      );
+    // 11. Parse data.xlsx and import participants
+    console.log('Parsing public/data.xlsx for seeding...');
+    if (!fs.existsSync('public/data.xlsx')) {
+      throw new Error('public/data.xlsx file not found!');
     }
-    console.log(`Seeded ${mockPeserta.length} mock participants.`);
 
-    // 13. Seeding 1 Active Session
+    const workbook = XLSX.readFile('public/data.xlsx');
+    const pesertaMap = new Map();
+    const categoriesSet = new Set();
+    const kelompoksSet = new Set();
+
+    // Read sheet "Data Peserta Terfilter"
+    const sheet1 = workbook.Sheets['Data Peserta Terfilter'];
+    if (sheet1) {
+      const data1 = XLSX.utils.sheet_to_json(sheet1, { header: 1 });
+      for (let i = 1; i < data1.length; i++) {
+        const row = data1[i];
+        if (!row || row.length === 0) continue;
+        const id = (row[0] || '').toString().trim();
+        const nama = (row[1] || '').toString().trim();
+        const kategori = (row[2] || '').toString().trim();
+        const kelompok = (row[3] || '').toString().trim();
+
+        if (!id || !nama) continue;
+
+        pesertaMap.set(id, { id, nama, kategori, kelompok, is_panitia: 0 });
+        if (kategori) categoriesSet.add(kategori);
+        if (kelompok) kelompoksSet.add(kelompok);
+      }
+    }
+
+    // Read sheet "Panitia"
+    const sheet2 = workbook.Sheets['Panitia'];
+    if (sheet2) {
+      const data2 = XLSX.utils.sheet_to_json(sheet2, { header: 1 });
+      for (let i = 0; i < data2.length; i++) {
+        const row = data2[i];
+        if (!row || row.length === 0) continue;
+        const id = (row[0] || '').toString().trim();
+        const nama = (row[1] || '').toString().trim();
+        const kategori = (row[2] || '').toString().trim();
+        const kelompok = (row[3] || '').toString().trim();
+
+        if (!id || !nama) continue;
+
+        pesertaMap.set(id, { id, nama, kategori, kelompok, is_panitia: 1 });
+        if (kategori) categoriesSet.add(kategori);
+        if (kelompok) kelompoksSet.add(kelompok);
+      }
+    }
+
+    // 12. Dynamic lookup tables seeding
+    console.log('Seeding categories dynamically...');
+    const kategoriMap = new Map();
+    for (const kat of categoriesSet) {
+      const [res] = await connection.query('INSERT INTO kategori (nama_kategori) VALUES (?)', [kat]);
+      kategoriMap.set(kat.toLowerCase().trim(), res.insertId);
+    }
+
+    console.log('Seeding kelompoks dynamically...');
+    const kelompokMap = new Map();
+    for (const kel of kelompoksSet) {
+      const [res] = await connection.query('INSERT INTO kelompok (nama_kelompok) VALUES (?)', [kel]);
+      kelompokMap.set(kel.toLowerCase().trim(), res.insertId);
+    }
+
+    // 13. Seeding Peserta from data.xlsx
+    console.log(`Seeding table: peserta (${pesertaMap.size} records)...`);
+     const [desas] = await connection.query('SELECT id, nama_desa FROM desa');
+     const desaByName = new Map(desas.map(d => [d.nama_desa.toLowerCase().trim(), d.id]));
+
+     function getDesaIdForParticipant(kelompokName) {
+       const k = (kelompokName || '').toLowerCase().trim();
+       let desaName = 'Mentasan'; // Default fallback
+       if (['mentasan 1', 'mentasan 2', 'mentasan 3', 'kawunganten'].includes(k)) {
+         desaName = 'Mentasan';
+       } else if (['jeruklegi', 'tritih 3', 'bandara', 'aneka', 'karangkemiri'].includes(k)) {
+         desaName = 'Jeruklegi';
+       } else if (['limbangan', 'rawabendungan', 'kuripan', 'menganti', 'semampir'].includes(k)) {
+         desaName = 'Limbangan';
+       } else if (['tritih 1', 'tritih 2', 'tritih 4', 'tritih 5', 'bayur'].includes(k)) {
+         desaName = 'Cilacap Utara';
+       } else if (['cilacap 1', 'cilacap 2', 'cilacap 3', 'cilacap 4', 'cilacap 5', 'cilacap 6'].includes(k)) {
+         desaName = 'Cilacap Selatan';
+       }
+       return desaByName.get(desaName.toLowerCase()) || desas[0]?.id || null;
+     }
+
+     for (const p of pesertaMap.values()) {
+       const katId = p.kategori ? kategoriMap.get(p.kategori.toLowerCase().trim()) : null;
+       const kelId = p.kelompok ? kelompokMap.get(p.kelompok.toLowerCase().trim()) : null;
+       const desaId = getDesaIdForParticipant(p.kelompok);
+
+       await connection.query(
+         'INSERT INTO peserta (id, nama, kategori, desa, kelompok, kelamin, telp, ukuran_baju, is_panitia) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+         [p.id, p.nama, katId, desaId, kelId, 1, null, 'L', p.is_panitia]
+       );
+     }
+    console.log(`Successfully seeded ${pesertaMap.size} participants.`);
+
+    // 14. Seeding 1 Active Session
     console.log('Seeding initial active session...');
     const crypto = require('crypto');
     const sessionId = crypto.randomUUID();
@@ -229,7 +282,6 @@ async function run() {
       [sessionId, 'SESI 1', today, 'CAI-SCAN']
     );
     console.log('Active session "SESI 1" with access code "CAI-SCAN" seeded.');
-
 
     console.log('Database setup completed successfully.');
   } catch (error) {
@@ -242,4 +294,3 @@ async function run() {
 }
 
 run();
-
