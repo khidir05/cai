@@ -10,7 +10,7 @@ import {
   Printer, Share2, Search, Plus, Trash2, Download, Upload,
   UserCheck, User, MessageSquare, Calendar, Clock, AlertTriangle,
   Smartphone, UserPlus, ChevronDown, Check, Sparkles, RefreshCw, Loader2,
-  Square, Play, Menu, X, Eye
+  Square, Play, Menu, X, Eye, Trophy
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -479,12 +479,13 @@ export default function AdminPage() {
       p.nama_kategori || '-',
       p.nama_kelompok || '-',
       p.nama_desa || '-',
+      p.kelamin === 1 ? 'Laki-laki' : 'Perempuan',
       p.ukuran_baju || '-'
     ]);
 
     autoTable(doc, {
       startY: 25,
-      head: [['No', 'ID', 'Nama', 'Kategori', 'Kelompok', 'Desa', 'Ukuran']],
+      head: [['No', 'ID', 'Nama', 'Kategori', 'Kelompok', 'Desa', 'Kelamin', 'Ukuran']],
       body: tableRows,
       theme: 'striped',
       headStyles: { fillColor: [30, 165, 225] }
@@ -590,13 +591,14 @@ export default function AdminPage() {
           l.nama_kategori || '-',
           l.nama_kelompok || '-',
           l.nama_desa || '-',
+          l.kelamin === 1 ? 'Laki-laki' : 'Perempuan',
           l.ukuran_baju || '-',
           new Date(l.waktu_scan).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB'
         ]);
 
         autoTable(doc, {
           startY: 31,
-          head: [['No', 'ID Peserta', 'Nama', 'Kategori', 'Kelompok', 'Desa', 'Ukuran', 'Waktu Scan']],
+          head: [['No', 'ID Peserta', 'Nama', 'Kategori', 'Kelompok', 'Desa', 'Kelamin', 'Ukuran', 'Waktu Scan']],
           body: rows,
           theme: 'striped',
           headStyles: { fillColor: [30, 165, 225] }
@@ -611,6 +613,7 @@ export default function AdminPage() {
           'Kategori': l.nama_kategori || '',
           'Kelompok': l.nama_kelompok || '',
           'Desa': l.nama_desa || '',
+          'Jenis Kelamin': l.kelamin === 1 ? 'Laki-laki' : 'Perempuan',
           'Ukuran Baju': l.ukuran_baju || '',
           'Waktu Scan': new Date(l.waktu_scan).toLocaleString('id-ID')
         }));
@@ -1451,13 +1454,14 @@ export default function AdminPage() {
                           <th scope="col" className="px-5 py-3 text-xs font-bold">Kategori</th>
                           <th scope="col" className="px-5 py-3 text-xs font-bold">Kelompok</th>
                           <th scope="col" className="px-5 py-3 text-xs font-bold">Desa</th>
+                          <th scope="col" className="px-5 py-3 text-xs font-bold text-center">Kelamin</th>
                           <th scope="col" className="px-5 py-3 text-xs font-bold text-center rounded-r-2xl">Waktu Scan</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
                         {data.kehadiranLog?.slice(0, 10).length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="text-center py-12 text-slate-400 font-semibold">
+                            <td colSpan={8} className="text-center py-12 text-slate-400 font-semibold">
                               Belum ada data scan sesi ini.
                             </td>
                           </tr>
@@ -1470,6 +1474,7 @@ export default function AdminPage() {
                               <td className="px-5 py-3.5 font-semibold text-slate-650">{log.nama_kategori || '-'}</td>
                               <td className="px-5 py-3.5 font-medium text-slate-600">{log.nama_kelompok || '-'}</td>
                               <td className="px-5 py-3.5 font-medium text-slate-650">{log.nama_desa || '-'}</td>
+                              <td className="px-5 py-3.5 text-center font-black text-slate-800">{log.kelamin === 1 ? 'Laki-laki' : 'Perempuan'}</td>
                               <td className="px-5 py-3.5 text-center font-bold text-[#63c5eb]">
                                 {new Date(log.waktu_scan).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
                               </td>
@@ -1497,16 +1502,116 @@ export default function AdminPage() {
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-900 text-xs">{log.nama_peserta}</h4>
-                            <div className="grid grid-cols-2 gap-2 mt-2 text-[10px] text-slate-500 font-semibold">
-                              <div>Kategori: <span className="text-slate-800 font-bold">{log.nama_kategori || '-'}</span></div>
-                              <div>Kelompok: <span className="text-slate-800 font-bold">{log.nama_kelompok || '-'}</span></div>
-                              <div>Desa: <span className="text-slate-800 font-bold">{log.nama_desa || '-'}</span></div>
-                              <div>Ukuran: <span className="text-slate-800 font-bold">{log.ukuran_baju || '-'}</span></div>
-                            </div>
+                                  <div className="grid grid-cols-2 gap-2 mt-2 text-[10px] text-slate-500 font-semibold">
+                                    <div>Kategori: <span className="text-slate-800 font-bold">{log.nama_kategori || '-'}</span></div>
+                                    <div>Kelompok: <span className="text-slate-800 font-bold">{log.nama_kelompok || '-'}</span></div>
+                                    <div>Desa: <span className="text-slate-800 font-bold">{log.nama_desa || '-'}</span></div>
+                                    <div>Kelamin: <span className="text-slate-800 font-bold">{log.kelamin === 1 ? 'Laki-laki' : 'Perempuan'}</span></div>
+                                    <div>Ukuran: <span className="text-slate-800 font-bold">{log.ukuran_baju || '-'}</span></div>
+                                  </div>
                           </div>
                         </div>
                       ))
                     )}
+                  </div>
+                </div>
+
+                {/* Fastest Peserta Ranking split by gender */}
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-3.5">
+                    <div>
+                      <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                        <Trophy className="w-4.5 h-4.5 text-amber-500" />
+                        Ranking Peserta Tercepat
+                      </h2>
+                      <p className="text-[10px] text-slate-400 font-medium">Diurutkan berdasarkan presensi lengkap & rata-rata waktu absen paling awal</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Laki-laki Panel */}
+                    <div className="rounded-xl border border-slate-150 bg-white overflow-hidden">
+                      <div className="bg-indigo-500 text-white px-4 py-3 flex items-center gap-2">
+                        <Trophy className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Laki-laki</span>
+                      </div>
+                      {!data?.fastestLaki || data.fastestLaki.length === 0 ? (
+                        <div className="text-center py-6 text-slate-400 font-semibold text-xs">Belum ada data.</div>
+                      ) : (
+                        <table className="min-w-full divide-y divide-slate-100 text-left">
+                          <thead>
+                            <tr className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                              <th className="px-3 py-2 text-center w-8">#</th>
+                              <th className="px-3 py-2">Nama</th>
+                              <th className="px-3 py-2 text-center">Rata Waktu</th>
+                              <th className="px-3 py-2 text-center rounded-r-2xl">Hadir</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-xs">
+                            {data.fastestLaki.map((p: any, idx: number) => (
+                              <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-3 py-2.5 text-center">
+                                  {idx === 0 ? (
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 text-amber-600 font-black text-[10px]">1</span>
+                                  ) : idx === 1 ? (
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 text-slate-500 font-black text-[10px]">2</span>
+                                  ) : idx === 2 ? (
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-100 text-orange-600 font-black text-[10px]">3</span>
+                                  ) : (
+                                    <span className="font-bold text-slate-400 text-[10px]">{idx + 1}</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 font-bold text-slate-900">{p.nama}</td>
+                                <td className="px-3 py-2.5 text-center font-bold text-amber-600">{p.rata_waktu ? p.rata_waktu.slice(0, 5) : '-'}</td>
+                                <td className="px-3 py-2.5 text-center font-bold text-slate-900">{p.total_hadir}x</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+
+                    {/* Perempuan Panel */}
+                    <div className="rounded-xl border border-slate-150 bg-white overflow-hidden">
+                      <div className="bg-pink-500 text-white px-4 py-3 flex items-center gap-2">
+                        <Trophy className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Perempuan</span>
+                      </div>
+                      {!data?.fastestPerempuan || data.fastestPerempuan.length === 0 ? (
+                        <div className="text-center py-6 text-slate-400 font-semibold text-xs">Belum ada data.</div>
+                      ) : (
+                        <table className="min-w-full divide-y divide-slate-100 text-left">
+                          <thead>
+                            <tr className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                              <th className="px-3 py-2 text-center w-8">#</th>
+                              <th className="px-3 py-2">Nama</th>
+                              <th className="px-3 py-2 text-center">Rata Waktu</th>
+                              <th className="px-3 py-2 text-center rounded-r-2xl">Hadir</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-xs">
+                            {data.fastestPerempuan.map((p: any, idx: number) => (
+                              <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-3 py-2.5 text-center">
+                                  {idx === 0 ? (
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 text-amber-600 font-black text-[10px]">1</span>
+                                  ) : idx === 1 ? (
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 text-slate-500 font-black text-[10px]">2</span>
+                                  ) : idx === 2 ? (
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-100 text-orange-600 font-black text-[10px]">3</span>
+                                  ) : (
+                                    <span className="font-bold text-slate-400 text-[10px]">{idx + 1}</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 font-bold text-slate-900">{p.nama}</td>
+                                <td className="px-3 py-2.5 text-center font-bold text-amber-600">{p.rata_waktu ? p.rata_waktu.slice(0, 5) : '-'}</td>
+                                <td className="px-3 py-2.5 text-center font-bold text-slate-900">{p.total_hadir}x</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1875,6 +1980,7 @@ export default function AdminPage() {
                                     <th scope="col" className="px-4 py-2.5 text-xxs font-bold">Kategori</th>
                                     <th scope="col" className="px-4 py-2.5 text-xxs font-bold">Kelompok</th>
                                     <th scope="col" className="px-4 py-2.5 text-xxs font-bold">Desa</th>
+                                    <th scope="col" className="px-4 py-2.5 text-xxs font-bold text-center">Kelamin</th>
                                     <th scope="col" className="px-4 py-2.5 text-xxs font-bold text-center rounded-r-2xl">Waktu Scan</th>
                                   </tr>
                                 </thead>
@@ -1887,6 +1993,7 @@ export default function AdminPage() {
                                       <td className="px-4 py-3 font-semibold text-slate-600">{log.nama_kategori || '-'}</td>
                                       <td className="px-4 py-3 font-medium text-slate-650">{log.nama_kelompok || '-'}</td>
                                       <td className="px-4 py-3 font-medium text-slate-600">{log.nama_desa || '-'}</td>
+                                      <td className="px-4 py-3 text-center font-black text-slate-800">{log.kelamin === 1 ? 'Laki-laki' : 'Perempuan'}</td>
                                       <td className="px-4 py-3 text-center font-bold text-[#63c5eb]">
                                         {new Date(log.waktu_scan).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
                                       </td>
@@ -1908,12 +2015,13 @@ export default function AdminPage() {
                                   </div>
                                   <div>
                                     <h4 className="font-bold text-slate-900 text-xs">{log.nama}</h4>
-                                    <div className="grid grid-cols-2 gap-2 mt-2 text-[10px] text-slate-500 font-semibold">
-                                      <div>Kategori: <span className="text-slate-800 font-bold">{log.nama_kategori || '-'}</span></div>
-                                      <div>Kelompok: <span className="text-slate-800 font-bold">{log.nama_kelompok || '-'}</span></div>
-                                      <div>Desa: <span className="text-slate-800 font-bold">{log.nama_desa || '-'}</span></div>
-                                      <div>Ukuran: <span className="text-slate-800 font-bold">{log.ukuran_baju || '-'}</span></div>
-                                    </div>
+                          <div className="grid grid-cols-2 gap-2 mt-2 text-[10px] text-slate-500 font-semibold">
+                              <div>Kategori: <span className="text-slate-800 font-bold">{log.nama_kategori || '-'}</span></div>
+                              <div>Kelompok: <span className="text-slate-800 font-bold">{log.nama_kelompok || '-'}</span></div>
+                              <div>Desa: <span className="text-slate-800 font-bold">{log.nama_desa || '-'}</span></div>
+                              <div>Kelamin: <span className="text-slate-800 font-bold">{log.kelamin === 1 ? 'Laki-laki' : 'Perempuan'}</span></div>
+                              <div>Ukuran: <span className="text-slate-800 font-bold">{log.ukuran_baju || '-'}</span></div>
+                            </div>
                                   </div>
                                 </div>
                               ))}
@@ -2237,6 +2345,7 @@ export default function AdminPage() {
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold">Kategori</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold">Kelompok</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold">Desa</th>
+                        <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center">Kelamin</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center">Ukuran</th>
                         <th scope="col" className="px-5 py-3.5 text-xs font-bold text-center rounded-r-2xl print:hidden">Aksi</th>
                       </tr>
@@ -2244,7 +2353,7 @@ export default function AdminPage() {
                     <tbody className="bg-white divide-y divide-slate-100 text-slate-700 text-xs">
                       {filteredPeserta.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="text-center py-20 text-slate-400 font-semibold">
+                          <td colSpan={7} className="text-center py-20 text-slate-400 font-semibold">
                             Tidak ada data peserta yang cocok.
                           </td>
                         </tr>
@@ -2271,6 +2380,7 @@ export default function AdminPage() {
                             <td className="px-5 py-4 font-semibold text-slate-655">{p.nama_kategori || '-'}</td>
                             <td className="px-5 py-4 font-semibold text-slate-600">{p.nama_kelompok || '-'}</td>
                             <td className="px-5 py-4 font-semibold text-slate-655">{p.nama_desa || '-'}</td>
+                            <td className="px-5 py-4 text-center font-black text-slate-800">{p.kelamin === 1 ? 'Laki-laki' : 'Perempuan'}</td>
                             <td className="px-5 py-4 text-center font-black text-slate-800">{p.ukuran_baju || '-'}</td>
                             <td className="px-5 py-4 text-center print:hidden whitespace-nowrap">
                               <div className="flex items-center justify-center gap-2">
@@ -2326,6 +2436,7 @@ export default function AdminPage() {
                           <div>Kategori: <span className="text-slate-800 font-bold">{p.nama_kategori || '-'}</span></div>
                           <div>Kelompok: <span className="text-slate-800 font-bold">{p.nama_kelompok || '-'}</span></div>
                           <div>Desa: <span className="text-slate-800 font-bold">{p.nama_desa || '-'}</span></div>
+                          <div>Kelamin: <span className="text-slate-800 font-bold">{p.kelamin === 1 ? 'Laki-laki' : 'Perempuan'}</span></div>
                           <div>Ukuran: <span className="text-slate-800 font-bold">{p.ukuran_baju || '-'}</span></div>
                         </div>
                         <div className="flex items-center gap-2 pt-2 border-t border-slate-100 justify-end">

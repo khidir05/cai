@@ -10,7 +10,7 @@ export async function GET(request: Request) {
 
     if (sessionId) {
       const attendance = await query(
-        `SELECT k.waktu_scan, p.nama, p.id as peserta_id, p.ukuran_baju,
+        `SELECT k.waktu_scan, p.nama, p.id as peserta_id, p.kelamin, p.ukuran_baju,
                 d.nama_desa, kat.nama_kategori, kl.nama_kelompok
          FROM kehadiran k
          JOIN peserta p ON k.peserta = p.id
@@ -119,6 +119,34 @@ export async function GET(request: Request) {
       );
     }
 
+    // 11. Fastest peserta ranking split by gender (avg earliest check-in time, presensi lengkap first)
+    const [totalSesi] = await query('SELECT COUNT(*) as count FROM sesi');
+    const totalSesiCount = totalSesi.count;
+
+    const fastestLaki = await query(
+      `SELECT p.id, p.nama,
+              SEC_TO_TIME(AVG(TIME_TO_SEC(TIME(k.waktu_scan)))) as rata_waktu,
+              COUNT(k.id) as total_hadir
+       FROM kehadiran k
+       JOIN peserta p ON k.peserta = p.id
+       WHERE p.kelamin = 1
+       GROUP BY p.id, p.nama
+       ORDER BY total_hadir DESC, rata_waktu ASC
+       LIMIT 10`
+    );
+
+    const fastestPerempuan = await query(
+      `SELECT p.id, p.nama,
+              SEC_TO_TIME(AVG(TIME_TO_SEC(TIME(k.waktu_scan)))) as rata_waktu,
+              COUNT(k.id) as total_hadir
+       FROM kehadiran k
+       JOIN peserta p ON k.peserta = p.id
+       WHERE p.kelamin = 2
+       GROUP BY p.id, p.nama
+       ORDER BY total_hadir DESC, rata_waktu ASC
+       LIMIT 10`
+    );
+
     return NextResponse.json({
       success: true,
       stats: {
@@ -137,7 +165,10 @@ export async function GET(request: Request) {
       saranList,
       kehadiranLog,
       lookups: { desas, kategoris, kelompoks },
-      categoryStats
+      categoryStats,
+      totalSesi: totalSesiCount,
+      fastestLaki,
+      fastestPerempuan
     });
   } catch (error: any) {
     console.error('Failed to load admin data:', error);
