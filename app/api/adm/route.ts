@@ -81,6 +81,7 @@ export async function GET(request: Request) {
 
     const pesertaList = await query(
       `SELECT p.id, p.nama, p.kelamin, p.telp, p.ukuran_baju, p.is_panitia,
+              p.kategori, p.desa, p.kelompok,
               d.nama_desa, kat.nama_kategori, kl.nama_kelompok,
               (SELECT waktu_scan FROM kehadiran k WHERE k.peserta = p.id ORDER BY waktu_scan DESC LIMIT 1) as terakhir_absen
        FROM peserta p
