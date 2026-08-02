@@ -10,7 +10,7 @@ import {
   Printer, Share2, Search, Plus, Trash2, Download, Upload,
   UserCheck, User, MessageSquare, Calendar, Clock, AlertTriangle,
   Smartphone, UserPlus, ChevronDown, Check, Sparkles, RefreshCw, Loader2,
-  Square, Play, Menu, X, Eye, Trophy
+  Square, Play, Menu, X, Eye, Trophy, Pencil
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -32,6 +32,7 @@ export default function AdminPage() {
 
   // Add Participant Form State
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingPeserta, setEditingPeserta] = useState<any>(null);
   const [newPesertaId, setNewPesertaId] = useState('');
   const [newPesertaNama, setNewPesertaNama] = useState('');
   const [newPesertaKategori, setNewPesertaKategori] = useState('');
@@ -238,7 +239,25 @@ export default function AdminPage() {
   };
 
 
-  // 8. Handle Add Participant
+  // 7b. Handle Edit Participant - populate form
+  const handleEditParticipant = (p: any) => {
+    setEditingPeserta(p);
+    setNewPesertaId(p.id);
+    setNewPesertaNama(p.nama);
+    setNewPesertaKategori(p.kategori?.toString() || '');
+    setNewPesertaDesa(p.desa?.toString() || '');
+    setNewPesertaKelompok(p.kelompok?.toString() || '');
+    setNewPesertaKelamin(p.kelamin?.toString() || '1');
+    setNewPesertaTelp(p.telp || '');
+    setNewPesertaUkuran(p.ukuran_baju || 'L');
+    setNewPesertaIsPanitia(p.is_panitia === 1);
+    setFormError('');
+    setFormSuccess('');
+    setShowAddForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // 8. Handle Add/Update Participant
   const handleAddParticipant = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
@@ -250,11 +269,13 @@ export default function AdminPage() {
     }
 
     try {
+      const isEditing = !!editingPeserta;
       const res = await fetch('/api/adm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'add_peserta',
+          action: isEditing ? 'update_peserta' : 'add_peserta',
+          originalId: editingPeserta?.id,
           id: newPesertaId,
           nama: newPesertaNama,
           kategori: newPesertaKategori,
@@ -268,18 +289,19 @@ export default function AdminPage() {
       });
       const resJson = await res.json();
       if (resJson.success) {
-        setFormSuccess('Peserta berhasil ditambahkan!');
+        setFormSuccess(isEditing ? 'Peserta berhasil diperbarui!' : 'Peserta berhasil ditambahkan!');
         setNewPesertaId('');
         setNewPesertaNama('');
         setNewPesertaTelp('');
         setNewPesertaIsPanitia(false);
+        setEditingPeserta(null);
         fetchDashboardData(false);
       } else {
         setFormError(resJson.message);
       }
     } catch (err) {
       console.error(err);
-      setFormError('Gagal menambahkan peserta.');
+      setFormError('Gagal menyimpan peserta.');
     }
   };
 
@@ -2059,7 +2081,7 @@ export default function AdminPage() {
                   <div className="flex items-center gap-2.5">
                     {/* Collapsible Add Form Toggle */}
                     <button
-                      onClick={() => setShowAddForm(!showAddForm)}
+                      onClick={() => { setShowAddForm(!showAddForm); if (!showAddForm) setEditingPeserta(null); }}
                       className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-md"
                     >
                       {showAddForm ? <ChevronDown className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
@@ -2105,12 +2127,12 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Form Tambah Peserta Collapsible */}
+                {/* Form Tambah/Edit Peserta Collapsible */}
                 {showAddForm && (
                   <div className="bg-slate-50 border border-slate-150 rounded-2xl p-5 shadow-inner">
                     <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-1">
-                      <Sparkles className="w-4.5 h-4.5 text-[#63c5eb]" />
-                      Form Registrasi Peserta Baru
+                      {editingPeserta ? <Pencil className="w-4.5 h-4.5 text-amber-500" /> : <Sparkles className="w-4.5 h-4.5 text-[#63c5eb]" />}
+                      {editingPeserta ? 'Edit Peserta' : 'Form Registrasi Peserta Baru'}
                     </h3>
 
                     <form onSubmit={handleAddParticipant} className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -2268,16 +2290,16 @@ export default function AdminPage() {
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={() => setShowAddForm(false)}
+                            onClick={() => { setShowAddForm(false); setEditingPeserta(null); }}
                             className="px-4 py-2 bg-slate-200 hover:bg-slate-350 text-slate-700 text-xs font-bold rounded-lg transition-all"
                           >
                             Batal
                           </button>
                           <button
                             type="submit"
-                            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all shadow-md"
+                            className={`px-5 py-2 text-white text-xs font-bold rounded-lg transition-all shadow-md ${editingPeserta ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                           >
-                            Simpan Peserta
+                            {editingPeserta ? 'Update Peserta' : 'Simpan Peserta'}
                           </button>
                         </div>
                       </div>
@@ -2393,6 +2415,13 @@ export default function AdminPage() {
                                   <span>Cetak QR</span>
                                 </button>
                                 <button
+                                  onClick={() => handleEditParticipant(p)}
+                                  className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-slate-100 transition-colors"
+                                  title="Edit Peserta"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                                <button
                                   onClick={() => handleDeleteParticipant(p.id, p.nama)}
                                   className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-slate-100 transition-colors"
                                   title="Hapus Peserta"
@@ -2447,6 +2476,13 @@ export default function AdminPage() {
                           >
                             <Printer className="w-3.5 h-3.5" />
                             <span>Cetak QR</span>
+                          </button>
+                          <button
+                            onClick={() => handleEditParticipant(p)}
+                            className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-slate-100 transition-colors"
+                            title="Edit Peserta"
+                          >
+                            <Pencil className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteParticipant(p.id, p.nama)}

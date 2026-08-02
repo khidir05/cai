@@ -207,6 +207,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'Peserta berhasil ditambahkan!' });
     }
 
+    // 1b. Update participant
+    if (action === 'update_peserta') {
+      const { originalId, id, nama, kategori, desa, kelompok, kelamin, telp, ukuran_baju, is_panitia } = body;
+
+      if (!id || !nama || !kategori || !desa || !kelompok || !kelamin || !ukuran_baju) {
+        return NextResponse.json({ success: false, message: 'Semua kolom bertanda * wajib diisi.' }, { status: 400 });
+      }
+
+      if (id !== originalId) {
+        const duplicate = await query('SELECT id FROM peserta WHERE id = ? AND id != ? LIMIT 1', [id.trim(), originalId]);
+        if (duplicate && duplicate.length > 0) {
+          return NextResponse.json({ success: false, message: `ID "${id}" sudah digunakan oleh peserta lain.` }, { status: 400 });
+        }
+      }
+
+      await query(
+        `UPDATE peserta SET id=?, nama=?, kategori=?, desa=?, kelompok=?, kelamin=?, telp=?, ukuran_baju=?, is_panitia=? WHERE id=?`,
+        [id.trim(), nama.trim(), kategori, desa, kelompok, kelamin, (telp || '').trim(), ukuran_baju.trim(), is_panitia ? 1 : 0, originalId]
+      );
+
+      if (id !== originalId) {
+        await query('UPDATE kehadiran SET peserta=? WHERE peserta=?', [id.trim(), originalId]);
+      }
+
+      return NextResponse.json({ success: true, message: 'Peserta berhasil diperbarui!' });
+    }
+
     // 2. Delete participant
     if (action === 'delete_peserta') {
       const { targetId } = body;
