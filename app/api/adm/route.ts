@@ -211,9 +211,15 @@ export async function POST(request: Request) {
     if (action === 'update_peserta') {
       const { originalId, id, nama, kategori, desa, kelompok, kelamin, telp, ukuran_baju, is_panitia } = body;
 
-      if (!id || !nama || !kategori || !desa || !kelompok || !kelamin || !ukuran_baju) {
-        return NextResponse.json({ success: false, message: 'Semua kolom bertanda * wajib diisi.' }, { status: 400 });
+      if (!id || !nama) {
+        return NextResponse.json({ success: false, message: 'ID dan Nama wajib diisi.' }, { status: 400 });
       }
+
+      const kategoriVal = kategori ? parseInt(kategori, 10) : null;
+      const desaVal = desa ? parseInt(desa, 10) : null;
+      const kelompokVal = kelompok ? parseInt(kelompok, 10) : null;
+      const kelaminVal = kelamin ? parseInt(kelamin, 10) : 1;
+      const ukuranVal = ukuran_baju ? ukuran_baju.trim() : 'L';
 
       if (id !== originalId) {
         const duplicate = await query('SELECT id FROM peserta WHERE id = ? AND id != ? LIMIT 1', [id.trim(), originalId]);
@@ -224,7 +230,7 @@ export async function POST(request: Request) {
 
       await query(
         `UPDATE peserta SET id=?, nama=?, kategori=?, desa=?, kelompok=?, kelamin=?, telp=?, ukuran_baju=?, is_panitia=? WHERE id=?`,
-        [id.trim(), nama.trim(), kategori, desa, kelompok, kelamin, (telp || '').trim(), ukuran_baju.trim(), is_panitia ? 1 : 0, originalId]
+        [id.trim(), nama.trim(), kategoriVal, desaVal, kelompokVal, kelaminVal, (telp || '').trim(), ukuranVal, is_panitia ? 1 : 0, originalId]
       );
 
       if (id !== originalId) {

@@ -32,6 +32,7 @@ export default function AdminPage() {
 
   // Add Participant Form State
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [editingPeserta, setEditingPeserta] = useState<any>(null);
   const [newPesertaId, setNewPesertaId] = useState('');
   const [newPesertaNama, setNewPesertaNama] = useState('');
@@ -239,7 +240,7 @@ export default function AdminPage() {
   };
 
 
-  // 7b. Handle Edit Participant - populate form
+  // 7b. Handle Edit Participant - populate form & open modal
   const handleEditParticipant = (p: any) => {
     setEditingPeserta(p);
     setNewPesertaId(p.id);
@@ -253,8 +254,15 @@ export default function AdminPage() {
     setNewPesertaIsPanitia(p.is_panitia === 1);
     setFormError('');
     setFormSuccess('');
-    setShowAddForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setShowAddForm(false);
+    setShowEditModal(true);
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingPeserta(null);
+    setFormError('');
+    setFormSuccess('');
   };
 
   // 8. Handle Add/Update Participant
@@ -263,7 +271,7 @@ export default function AdminPage() {
     setFormError('');
     setFormSuccess('');
 
-    if (!newPesertaId.trim() || !newPesertaNama.trim() || !newPesertaKategori || !newPesertaDesa || !newPesertaKelompok) {
+    if (!editingPeserta && (!newPesertaId.trim() || !newPesertaNama.trim() || !newPesertaKategori || !newPesertaDesa || !newPesertaKelompok)) {
       setFormError('Harap lengkapi semua kolom wajib.');
       return;
     }
@@ -295,6 +303,7 @@ export default function AdminPage() {
         setNewPesertaTelp('');
         setNewPesertaIsPanitia(false);
         setEditingPeserta(null);
+        setShowEditModal(false);
         fetchDashboardData(false);
       } else {
         setFormError(resJson.message);
@@ -2081,7 +2090,7 @@ export default function AdminPage() {
                   <div className="flex items-center gap-2.5">
                     {/* Collapsible Add Form Toggle */}
                     <button
-                      onClick={() => { setShowAddForm(!showAddForm); if (!showAddForm) setEditingPeserta(null); }}
+                      onClick={() => { setShowEditModal(false); setShowAddForm(!showAddForm); if (!showAddForm) setEditingPeserta(null); }}
                       className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-md"
                     >
                       {showAddForm ? <ChevronDown className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
@@ -2304,6 +2313,200 @@ export default function AdminPage() {
                         </div>
                       </div>
                     </form>
+                  </div>
+                )}
+
+                {/* Edit Peserta Modal Popup */}
+                {showEditModal && editingPeserta && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 print:hidden">
+                    <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scale-up">
+                      {/* Modal Header */}
+                      <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <Pencil className="w-5 h-5" />
+                          <div>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-amber-100">Edit Peserta</h3>
+                            <p className="text-sm font-black mt-0.5">{editingPeserta.nama}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={closeEditModal}
+                          className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-white"
+                          title="Tutup"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+
+                      <form onSubmit={handleAddParticipant} className="flex flex-col flex-1 overflow-hidden">
+                        {/* Modal Body - Form Fields (no required) */}
+                        <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-550 mb-1 uppercase tracking-wider">ID Peserta</label>
+                            <input
+                              type="text"
+                              value={newPesertaId}
+                              onChange={(e) => setNewPesertaId(e.target.value)}
+                              placeholder="Contoh: PES-009"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-550 mb-1 uppercase tracking-wider">Nama Lengkap</label>
+                            <input
+                              type="text"
+                              value={newPesertaNama}
+                              onChange={(e) => setNewPesertaNama(e.target.value)}
+                              placeholder="Contoh: Khidir Afwan"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-550 mb-1 uppercase tracking-wider">Kategori</label>
+                            <select
+                              value={newPesertaKategori}
+                              onChange={(e) => setNewPesertaKategori(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
+                            >
+                              <option value="">-- Pilih Kategori --</option>
+                              {data.lookups?.kategoris.map((k: any) => (
+                                <option key={k.id} value={k.id}>{k.nama_kategori}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-550 mb-1 uppercase tracking-wider">Kelompok</label>
+                            <select
+                              value={newPesertaKelompok}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setNewPesertaKelompok(val);
+                                if (val && data.lookups) {
+                                  const selectedKel = data.lookups.kelompoks.find((k: any) => k.id.toString() === val.toString());
+                                  if (selectedKel) {
+                                    const kelName = selectedKel.nama_kelompok.toLowerCase().trim();
+                                    let targetDesa = '';
+                                    if (['mentasan 1', 'mentasan 2', 'mentasan 3', 'kawunganten'].includes(kelName)) {
+                                      targetDesa = 'Mentasan';
+                                    } else if (['jeruklegi', 'tritih 3', 'bandara', 'aneka', 'karangkemiri'].includes(kelName)) {
+                                      targetDesa = 'Jeruklegi';
+                                    } else if (['limbangan', 'rawabendungan', 'kuripan', 'menganti', 'semampir'].includes(kelName)) {
+                                      targetDesa = 'Limbangan';
+                                    } else if (['tritih 1', 'tritih 2', 'tritih 4', 'tritih 5', 'bayur'].includes(kelName)) {
+                                      targetDesa = 'Cilacap Utara';
+                                    } else if (['cilacap 1', 'cilacap 2', 'cilacap 3', 'cilacap 4', 'cilacap 5', 'cilacap 6'].includes(kelName)) {
+                                      targetDesa = 'Cilacap Selatan';
+                                    }
+
+                                    if (targetDesa) {
+                                      const matchedDesaObj = data.lookups.desas.find((d: any) => d.nama_desa.toLowerCase().trim() === targetDesa.toLowerCase().trim());
+                                      if (matchedDesaObj) {
+                                        setNewPesertaDesa(matchedDesaObj.id.toString());
+                                      }
+                                    }
+                                  }
+                                }
+                              }}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
+                            >
+                              <option value="">-- Pilih Kelompok --</option>
+                              {data.lookups?.kelompoks.map((kl: any) => (
+                                <option key={kl.id} value={kl.id}>{kl.nama_kelompok}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-550 mb-1 uppercase tracking-wider">Desa</label>
+                            <select
+                              value={newPesertaDesa}
+                              onChange={(e) => setNewPesertaDesa(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
+                            >
+                              <option value="">-- Pilih Desa --</option>
+                              {data.lookups?.desas.map((d: any) => (
+                                <option key={d.id} value={d.id}>{d.nama_desa}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-550 mb-1 uppercase tracking-wider">Jenis Kelamin</label>
+                            <select
+                              value={newPesertaKelamin}
+                              onChange={(e) => setNewPesertaKelamin(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
+                            >
+                              <option value="1">Laki-laki</option>
+                              <option value="2">Perempuan</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-550 mb-1 uppercase tracking-wider">No Telepon</label>
+                            <input
+                              type="text"
+                              value={newPesertaTelp}
+                              onChange={(e) => setNewPesertaTelp(e.target.value)}
+                              placeholder="Contoh: 0812..."
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-550 mb-1 uppercase tracking-wider">Ukuran Baju</label>
+                            <select
+                              value={newPesertaUkuran}
+                              onChange={(e) => setNewPesertaUkuran(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
+                            >
+                              {['S', 'M', 'L', 'XL', 'XXL', 'XXXL'].map((sz) => (
+                                <option key={sz} value={sz}>{sz}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-550 mb-1 uppercase tracking-wider">Tipe Kepesertaan</label>
+                            <select
+                              value={newPesertaIsPanitia ? '1' : '0'}
+                              onChange={(e) => setNewPesertaIsPanitia(e.target.value === '1')}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#63c5eb]"
+                            >
+                              <option value="0">Peserta</option>
+                              <option value="1">Panitia</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="bg-slate-50 p-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                          <div className="text-[10px] font-semibold text-slate-450 uppercase">
+                            {formError && <span className="text-red-500">{formError}</span>}
+                            {formSuccess && <span className="text-emerald-600">{formSuccess}</span>}
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={closeEditModal}
+                              className="px-5 py-2.5 bg-slate-200 hover:bg-slate-350 text-slate-700 text-xs font-bold rounded-xl transition-all"
+                            >
+                              Batal
+                            </button>
+                            <button
+                              type="submit"
+                              className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all shadow-md"
+                            >
+                              Update Peserta
+                            </button>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
                   </div>
                 )}
 
